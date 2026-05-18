@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "timestamp": "2026-05-19",
+      "title": "Explain Mode with In-Page Sub-Selection",
+      "description": "在 Translator 内新增 mode='explain' 内置 action,提供通用文本/概念深度解释,并在子选中时切到 explain-fragment-in-context prompt",
+      "files": [
+        { "action": "new", "path": "docs/atelier/specs/A_explain_mode_with_subselect.md" }
+      ]
+    }
+  ]
+}
