@@ -175,4 +175,22 @@ describe('buildExplainPrompts', () => {
         expect(result.commandPrompt).toContain('Chinese')
         expect(result.contentPrompt).toBe(baseQuery.text)
     })
+
+    it('fragment branch: when selectedWord is set, prompt explains the fragment using full text as context', () => {
+        const query = {
+            text: 'The quick brown fox jumps over the lazy dog.',
+            selectedWord: 'lazy dog',
+        }
+        const result = buildExplainPrompts(query, 'English', 'Chinese')
+
+        expect(result.rolePrompt).toMatch(/fragment/i)
+        expect(result.rolePrompt).toMatch(/context/i)
+        expect(result.rolePrompt).toContain('English')
+        expect(result.rolePrompt).toContain('Chinese')
+        expect(result.commandPrompt).toMatch(/yes|understand/i)
+        expect(result.contentPrompt).toContain('the original text is:')
+        expect(result.contentPrompt).toContain(query.text)
+        expect(result.contentPrompt).toContain('the fragment is:')
+        expect(result.contentPrompt).toContain(query.selectedWord)
+    })
 })
