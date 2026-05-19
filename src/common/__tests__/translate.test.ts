@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { QuoteProcessor } from '../translate'
+import { buildExplainPrompts, QuoteProcessor } from '../translate'
 
 describe('QuoteProcessor', () => {
     it('should return the string without quote', () => {
@@ -158,5 +158,21 @@ describe('QuoteProcessor', () => {
         )}.`
         const targetText = quoteProcessor.processText(quoteProcessor.quoteStart + text + quoteProcessor.quoteEnd)
         expect(targetText).toEqual(text)
+    })
+})
+
+describe('buildExplainPrompts', () => {
+    const baseQuery = {
+        text: 'The quick brown fox jumps over the lazy dog.',
+    }
+
+    it('default branch: produces a full-text explain prompt when selectedWord is absent', () => {
+        const result = buildExplainPrompts(baseQuery, 'English', 'Chinese')
+
+        expect(result.rolePrompt).toMatch(/explain/i)
+        expect(result.rolePrompt).toContain('Chinese')
+        expect(result.commandPrompt).toMatch(/markdown/i)
+        expect(result.commandPrompt).toContain('Chinese')
+        expect(result.contentPrompt).toBe(baseQuery.text)
     })
 })

@@ -72,6 +72,42 @@ export const isAWord = (langCode: string, text: string) => {
     return iterator.next().value?.segment === text
 }
 
+export interface ExplainPromptInput {
+    text: string
+    selectedWord?: string
+    writing?: boolean
+}
+
+export interface ExplainPromptResult {
+    rolePrompt: string
+    commandPrompt: string
+    contentPrompt: string
+}
+
+export function buildExplainPrompts(
+    query: ExplainPromptInput,
+    sourceLangName: string,
+    targetLangName: string
+): ExplainPromptResult {
+    const useFragmentBranch = !query.writing && !!query.selectedWord
+    if (!useFragmentBranch) {
+        const rolePrompt = codeBlock`
+${oneLine`
+You are a senior subject-matter explainer fluent in ${targetLangName}.
+Given a passage of ${sourceLangName} text, your job is to explain it in depth in ${targetLangName}:
+the core meaning, key terms, implicit assumptions, and any background knowledge a learner needs.
+Do not produce a literal translation. Quote source-language phrases inline only when they carry meaning that is hard to convey otherwise.
+`}`
+        const commandPrompt = oneLine`
+Please explain the following text in ${targetLangName}, using Markdown
+(short paragraphs and/or bullet lists). Do not translate it word-for-word.
+`
+        const contentPrompt = query.text
+        return { rolePrompt, commandPrompt, contentPrompt }
+    }
+    return { rolePrompt: '', commandPrompt: '', contentPrompt: '' }
+}
+
 function getThinkingBudget(level: string): number {
     switch (level) {
         case 'low':
