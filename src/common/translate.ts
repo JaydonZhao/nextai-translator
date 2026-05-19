@@ -459,6 +459,21 @@ If you understand, say "yes", and then we will begin.`
                 If the code has obvious errors, point them out.`
                 contentPrompt = '```\n' + query.text + '\n```'
                 break
+            case 'explain': {
+                const explainPrompts = buildExplainPrompts(
+                    {
+                        text: query.text,
+                        selectedWord: query.selectedWord,
+                        writing: query.writing,
+                    },
+                    sourceLangName,
+                    targetLangName
+                )
+                rolePrompt = explainPrompts.rolePrompt
+                commandPrompt = explainPrompts.commandPrompt
+                contentPrompt = explainPrompts.contentPrompt
+                break
+            }
         }
     }
 
