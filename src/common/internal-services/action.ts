@@ -143,6 +143,7 @@ class ActionInternalService implements IActionInternalService {
                     name: m.name,
                     mode: m.mode,
                     icon: m.icon,
+                    outputRenderingFormat: m.outputRenderingFormat,
                     createdAt: now,
                     updatedAt: now,
                 })
