@@ -6,7 +6,14 @@ import { codeBlock, oneLine, oneLineTrim } from 'common-tags'
 import { getEngine } from './engines'
 import { getSettings } from './utils'
 
-export type TranslateMode = 'translate' | 'polishing' | 'summarize' | 'analyze' | 'explain-code' | 'big-bang'
+export type TranslateMode =
+    | 'translate'
+    | 'polishing'
+    | 'summarize'
+    | 'analyze'
+    | 'explain-code'
+    | 'explain'
+    | 'big-bang'
 export type APIModel =
     | 'gpt-3.5-turbo-1106'
     | 'gpt-3.5-turbo'

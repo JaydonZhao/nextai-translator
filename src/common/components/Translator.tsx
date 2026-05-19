@@ -531,6 +531,10 @@ const actionStrItems: Record<TranslateMode, IActionStrItem> = {
         beforeStr: 'Explaining...',
         afterStr: 'Explained',
     },
+    'explain': {
+        beforeStr: 'Explaining...',
+        afterStr: 'Explained',
+    },
     'big-bang': {
         beforeStr: 'Writing...',
         afterStr: 'Written',
