@@ -193,4 +193,17 @@ describe('buildExplainPrompts', () => {
         expect(result.contentPrompt).toContain('the fragment is:')
         expect(result.contentPrompt).toContain(query.selectedWord)
     })
+
+    it('writing mode: ignores selectedWord and stays on the default full-text branch', () => {
+        const query = {
+            text: 'The quick brown fox jumps over the lazy dog.',
+            selectedWord: 'lazy dog',
+            writing: true,
+        }
+        const result = buildExplainPrompts(query, 'English', 'Chinese')
+
+        expect(result.contentPrompt).toBe(query.text)
+        expect(result.contentPrompt).not.toContain('the fragment is:')
+        expect(result.commandPrompt).toMatch(/markdown/i)
+    })
 })
