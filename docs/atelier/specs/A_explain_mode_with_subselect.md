@@ -69,7 +69,7 @@ Steps:
   - `commandPrompt`:要求用 `targetLangName` 输出,采用 Markdown 段落或要点列表,**禁止逐字翻译**
   - `contentPrompt`:`query.text`
 - **FR-8:** explain 子选中分支(`!query.writing && query.selectedWord` 非空):覆盖 FR-7 设定的三个 prompt 字段为 explain-fragment-in-context 模板,使用 XML tag 显式分隔输入边界、采用单轮纯指令风格:
-  - `rolePrompt`:声明角色为「在给定原文上下文中讲解片段的专家」;**告知输入会包含 `<original_text>` 与 `<fragment>` 两个 XML tag 块**;任务是解释**片段在该原文中的具体含义、作用、隐含信息、与上下文的关系**;若片段是术语/惯用语/隐喻,应展开;3-5 个**与该用法语义相同**的额外例句(源语言),并在目标语言下解释;明确要求 Markdown 输出且不要寒暄
+  - `rolePrompt`:声明角色为「在给定原文上下文中讲解片段的专家」;**告知输入会包含 `<original_text>` 与 `<fragment>` 两个 XML tag 块**;解释结构必须**同时给出**:(1) 片段的**字典义**与该原文中的**语境义**(两者并列说明,不只给语境义);(2) 片段在上下文中承担的作用(功能、语气、修辞效果);(3) 隐含信息、典故、惯用语、隐喻;(4) 若是术语/惯用语/固定搭配则展开;并附 3-5 个**与该用法语义相同**的额外源语言例句,并在目标语言下解释;明确要求 Markdown 输出且不要寒暄
   - `commandPrompt`:**单轮纯指令**(不再使用 `Yes, I understand...` 风格的伪 assistant 回合 — 该 few-shot priming 技巧对现代 frontier 模型不仅无收益,反而可能因模型识破"单条 user message 内伪装多轮对话"的格式而干扰理解),形如 `Explain the <fragment> in the context of the <original_text>, following the structure above.`
   - `contentPrompt`:用 XML tag 显式包裹两段输入,避免原文含标点/引号/换行时的边界歧义:
     ```

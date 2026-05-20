@@ -77,3 +77,21 @@
   - **In-app updater 是「通知工具」，不是「自动升级工具」**。看到弹窗 → 永远点 **Close** → terminal 跑 `git fetch upstream && git merge upstream/main && pnpm build-tauri`。**绝对不能点 Update**，否则 upstream 的二进制会通过签名校验直接覆盖本地 fork
 - Docs updated:
   - `auxiliary_docs/a_repo_fork_setup.md`：加「Build 命令」「In-app Updater 策略」两节；「日常同步」加 `pnpm build-tauri` 步骤
+
+---
+
+### 2026-05-20 — Explain fragment prompt 加上字典义并列输出
+
+- Task description:
+  - 调整 explain 模式 fragment 分支的 rolePrompt 第 (1) 项语义：从「只解释片段在原文中的语境义」改为「字典义 + 语境义并列解释」；实测中只给语境义往往省略掉用户其实想顺手确认的基础词义，信噪比反而降低
+- Changes made:
+  - `src/common/translate.ts:113`：`(1) what the fragment means specifically within this original text — not its dictionary meaning in isolation` → `... — both the dictionary meaning in isolation and the meaning it takes on in this context`
+  - 仅 prompt 措辞改动，prompt 结构（XML tag 边界、单轮 imperative、3-5 例句、Markdown 输出）与既有 FR-8 约束一致，未触动其他分支
+- Docs updated:
+  - `docs/atelier/specs/A_explain_mode_with_subselect.md` FR-8：rolePrompt 描述同步重写为「字典义 + 语境义并列」+ 显式编号 (1)-(4) 结构，与代码当前措辞对齐
+  - 注：`docs/atelier/plans/A_explain_mode_with_subselect.md` 中两处旧 prompt 引文不改 — 计划文档是 TDD 任务的时间快照，不维护与代码同步
+- Commands/scripts executed:
+  - `pnpm test --run`（13 tests pass，既有断言不依赖该句措辞）
+  - `pnpm exec tsc --noEmit`（clean）
+- References:
+  - 受影响代码路径：`buildExplainPrompts` fragment 分支（translate.ts:108-122）

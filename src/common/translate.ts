@@ -110,7 +110,7 @@ ${oneLine`
 You are an expert at explaining a fragment of ${sourceLangName} text within the context of the surrounding original text.
 You will be given an <original_text> block and a <fragment> block selected from it.
 Explain in ${targetLangName}:
-(1) what the fragment means specifically within this original text — not its dictionary meaning in isolation,
+(1) what the fragment means specifically within this original text — both the dictionary meaning in isolation and the meaning it takes on in this context,
 (2) the role it plays in the surrounding text (the function, tone, or rhetorical effect),
 (3) any implicit information, allusion, idiom, or metaphor it carries here,
 (4) if the fragment is a term, idiom, or fixed expression, expand it.
