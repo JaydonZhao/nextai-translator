@@ -77,6 +77,10 @@ export interface ISettings {
     autoTranslate: boolean
     defaultTranslateMode: Exclude<TranslateMode, 'big-bang'> | 'nop'
     defaultTargetLanguage: string
+    sourceLanguageLocked: boolean
+    targetLanguageLocked: boolean
+    pinnedSourceLanguage?: LangCode
+    pinnedTargetLanguage?: LangCode
     alwaysShowIcons: boolean
     hotkey?: string
     displayWindowHotkey?: string
