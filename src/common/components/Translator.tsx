@@ -1958,14 +1958,22 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                             <div
                                 className={styles.arrow}
                                 onClick={() => {
+                                    const newSource = (targetLang ?? 'en') as LangCode
+                                    const newTarget = sourceLang
                                     setTranslateDeps((v) => ({
                                         ...v,
                                         text: translatedText,
-                                        sourceLang: targetLang ?? 'en',
-                                        targetLang: sourceLang,
+                                        sourceLang: newSource,
+                                        targetLang: newTarget,
                                     }))
-                                    setSourceLang(targetLang ?? 'en')
-                                    setTargetLang(sourceLang)
+                                    setSourceLang(newSource)
+                                    setTargetLang(newTarget)
+                                    const patch: Partial<typeof settings> = {}
+                                    if (settings.sourceLanguageLocked) patch.pinnedSourceLanguage = newSource
+                                    if (settings.targetLanguageLocked) patch.pinnedTargetLanguage = newTarget
+                                    if (Object.keys(patch).length > 0) {
+                                        setSettings(patch)
+                                    }
                                     editorRef.current?.focus()
                                 }}
                             >
