@@ -7,6 +7,14 @@
       "files": [
         { "action": "new", "path": "docs/atelier/specs/A_explain_mode_with_subselect.md" }
       ]
+    },
+    {
+      "timestamp": "2026-05-21",
+      "title": "Customizable Source / Target Language (Lock & Pin)",
+      "description": "在 Translator 主界面新增 source/target 各自的 lock 按钮和独立 Detect 按钮；lock 后跳过 detectLang 与 CN↔EN swap，lock 状态与 pin 的语言值持久化到 settings 跨重启保留；不做 per-action lock，writing mode 维持现状",
+      "files": [
+        { "action": "new", "path": "docs/atelier/specs/B_pinned_source_target_language.md" }
+      ]
     }
   ]
 }
