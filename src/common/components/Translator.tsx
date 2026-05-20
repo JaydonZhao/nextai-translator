@@ -1975,7 +1975,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                     </div>
                                 </Tooltip>
                             </div>
-                            <div className={styles.to}>
+                            <div className={styles.to} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <Select
                                     disabled={currentTranslateMode === 'polishing'}
                                     size='mini'
@@ -1991,17 +1991,53 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                     }}
                                     onChange={({ value }) => {
                                         stopAutomaticallyChangeTargetLang.current = true
-                                        const langId = value.length > 0 ? value[0].id : targetLangOptions[0].id
-                                        setTargetLang(langId as LangCode)
-                                        setTranslateDeps((v) => {
-                                            return {
-                                                ...v,
-                                                text: editableText,
-                                                targetLang: langId as LangCode,
-                                            }
-                                        })
+                                        const langId = (
+                                            value.length > 0 ? value[0].id : targetLangOptions[0].id
+                                        ) as LangCode
+                                        setTargetLang(langId)
+                                        setTranslateDeps((v) => ({
+                                            ...v,
+                                            text: editableText,
+                                            targetLang: langId,
+                                        }))
+                                        if (settings.targetLanguageLocked) {
+                                            setSettings({ pinnedTargetLanguage: langId })
+                                        }
                                     }}
                                 />
+                                <Tooltip content={t('Lock target language')} placement='top'>
+                                    <div
+                                        role='button'
+                                        aria-pressed={settings.targetLanguageLocked}
+                                        aria-label={t('Lock target language')}
+                                        style={{
+                                            cursor: currentTranslateMode === 'polishing' ? 'not-allowed' : 'pointer',
+                                            opacity: currentTranslateMode === 'polishing' ? 0.4 : 1,
+                                            color: settings.targetLanguageLocked
+                                                ? theme.colors.contentAccent
+                                                : theme.colors.contentSecondary,
+                                            display: 'inline-flex',
+                                        }}
+                                        onClick={async () => {
+                                            if (currentTranslateMode === 'polishing') return
+                                            if (settings.targetLanguageLocked) {
+                                                await setSettings({ targetLanguageLocked: false })
+                                                stopAutomaticallyChangeTargetLang.current = false
+                                            } else {
+                                                await setSettings({
+                                                    targetLanguageLocked: true,
+                                                    pinnedTargetLanguage: targetLang,
+                                                })
+                                            }
+                                        }}
+                                    >
+                                        {settings.targetLanguageLocked ? (
+                                            <TbLock size={16} />
+                                        ) : (
+                                            <TbLockOpen size={16} />
+                                        )}
+                                    </div>
+                                </Tooltip>
                             </div>
                         </div>
                         <div className={styles.popupCardHeaderButtonGroup} ref={headerActionButtonsRef}>
