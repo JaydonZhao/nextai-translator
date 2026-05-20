@@ -17,3 +17,6 @@ npm-error.log
 /test-results/
 /playwright-report/
 /playwright/.cache/
+
+# Claude Code local state (per-session settings, worktrees, jobs)
+.claude/
