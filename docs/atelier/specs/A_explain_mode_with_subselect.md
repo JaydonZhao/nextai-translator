@@ -77,7 +77,15 @@ Steps:
 
 ### FR Group 3: 输入框 sub-selection 复用现有机制
 
-- **FR-11:** Translator.tsx 现有的 `editorRef.addEventListener('mouseup', onMouseUp)` 子选取监听(行 873-896)对 explain 模式无需改动 — 它已经是 mode 无关的,只设置 `selectedWord` state
+- **FR-11:** Translator.tsx 子选取监听(行 862-901)当前通过 `const isTranslate = currentTranslateMode === 'translate'` gate 整个 useEffect — 非 translate 模式会清空 `selectedWord` 并不绑定 `mouseup` 监听器。**必须扩展该 gate 让 explain 模式也启用子选取**,例如:
+  ```ts
+  const isSelectedWordEnabled = currentTranslateMode === 'translate' || currentTranslateMode === 'explain'
+  useEffect(() => {
+      if (!isSelectedWordEnabled) { setSelectedWord(''); return undefined }
+      // ... 现有 mouseup / compositionstart / compositionend / blur 绑定不变
+  }, [isSelectedWordEnabled])
+  ```
+  原 `isTranslate` 局部常量只在该 useEffect 内部和依赖数组里被引用(同文件另一处 `isTranslate` 在不同作用域内,与此无关),可直接替换为 `isSelectedWordEnabled`
 - **FR-12:** Translator.tsx 现有 `useEffect([translateText, selectedWord])`(行 1374-1378)对 explain 模式无需改动 — 它会自动把新 `selectedWord` 传入 `translateText` → `translate({...selectedWord})`
 - **FR-13:** Translator.tsx 现有 cache key(`:1303` `${...}:${selectedWord}:${translationFlag}`)对 explain 模式无需改动 — selectedWord 本就在 key 内
 - **FR-14:** 全选(`selectionStart === 0 && selectionEnd === value.length`)清空 `selectedWord` 的现有逻辑(`Translator.tsx:874-877`)在 explain 模式同样生效;此时回退为 FR-7 的全文 explain

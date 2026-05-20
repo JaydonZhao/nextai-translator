@@ -858,9 +858,9 @@ function InnerTranslator(props: IInnerTranslatorProps) {
         setHiddenActions(hiddenActions)
     }, [actions, activateAction?.id, displayedActionsMaxCount])
 
-    const isTranslate = currentTranslateMode === 'translate'
+    const isSelectedWordEnabled = currentTranslateMode === 'translate' || currentTranslateMode === 'explain'
     useEffect(() => {
-        if (!isTranslate) {
+        if (!isSelectedWordEnabled) {
             setSelectedWord('')
             return undefined
         }
@@ -898,7 +898,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
             editor.removeEventListener('mouseup', onMouseUp)
             editor.removeEventListener('blur', onBlur)
         }
-    }, [isTranslate])
+    }, [isSelectedWordEnabled])
 
     const { theme, themeType } = useTheme()
 
