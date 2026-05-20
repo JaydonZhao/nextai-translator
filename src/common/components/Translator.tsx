@@ -9,7 +9,7 @@ import { createUseStyles } from 'react-jss'
 import { AiOutlineFileSync } from 'react-icons/ai'
 import { IoSettingsOutline } from 'react-icons/io5'
 import { TiArrowBack } from 'react-icons/ti'
-import { TbArrowsExchange, TbCsv } from 'react-icons/tb'
+import { TbArrowsExchange, TbCsv, TbLock, TbLockOpen, TbScanEye } from 'react-icons/tb'
 import { MdOutlineGrade, MdGrade, MdHistory } from 'react-icons/md'
 import * as mdIcons from 'react-icons/md'
 import { StatefulTooltip } from 'baseui-sd/tooltip'
@@ -1859,7 +1859,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                             <div style={{ flexShrink: 0, marginRight: 'auto' }} />
                         )}
                         <div className={styles.popupCardHeaderActionsContainer} ref={languagesSelectorRef}>
-                            <div className={styles.from}>
+                            <div className={styles.from} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <Select
                                     disabled={currentTranslateMode === 'explain-code'}
                                     size='mini'
@@ -1874,17 +1874,86 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                         },
                                     }}
                                     onChange={({ value }) => {
-                                        const langId = value.length > 0 ? value[0].id : sourceLangOptions[0].id
-                                        setSourceLang(langId as LangCode)
-                                        setTranslateDeps((v) => {
-                                            return {
-                                                ...v,
-                                                text: editableText,
-                                                sourceLang: langId as LangCode,
-                                            }
-                                        })
+                                        const langId = (
+                                            value.length > 0 ? value[0].id : sourceLangOptions[0].id
+                                        ) as LangCode
+                                        setSourceLang(langId)
+                                        setTranslateDeps((v) => ({
+                                            ...v,
+                                            text: editableText,
+                                            sourceLang: langId,
+                                        }))
+                                        if (settings.sourceLanguageLocked) {
+                                            setSettings({ pinnedSourceLanguage: langId })
+                                        }
                                     }}
                                 />
+                                <Tooltip content={t('Detect source language')} placement='top'>
+                                    <div
+                                        role='button'
+                                        aria-label={t('Detect source language')}
+                                        style={{
+                                            cursor: currentTranslateMode === 'explain-code' ? 'not-allowed' : 'pointer',
+                                            opacity: currentTranslateMode === 'explain-code' ? 0.4 : 1,
+                                            display: 'inline-flex',
+                                            color: theme.colors.contentSecondary,
+                                        }}
+                                        onClick={async () => {
+                                            if (currentTranslateMode === 'explain-code') return
+                                            const detected = await detectLang(editableText)
+                                            setSourceLang(detected)
+                                            setTranslateDeps((v) => ({
+                                                ...v,
+                                                text: editableText,
+                                                sourceLang: detected,
+                                            }))
+                                            if (settings.sourceLanguageLocked) {
+                                                setSettings({ pinnedSourceLanguage: detected })
+                                            }
+                                        }}
+                                    >
+                                        <TbScanEye size={16} />
+                                    </div>
+                                </Tooltip>
+                                <Tooltip content={t('Lock source language')} placement='top'>
+                                    <div
+                                        role='button'
+                                        aria-pressed={settings.sourceLanguageLocked}
+                                        aria-label={t('Lock source language')}
+                                        style={{
+                                            cursor: currentTranslateMode === 'explain-code' ? 'not-allowed' : 'pointer',
+                                            opacity: currentTranslateMode === 'explain-code' ? 0.4 : 1,
+                                            color: settings.sourceLanguageLocked
+                                                ? theme.colors.contentAccent
+                                                : theme.colors.contentSecondary,
+                                            display: 'inline-flex',
+                                        }}
+                                        onClick={async () => {
+                                            if (currentTranslateMode === 'explain-code') return
+                                            if (settings.sourceLanguageLocked) {
+                                                await setSettings({ sourceLanguageLocked: false })
+                                                const detected = await detectLang(editableText)
+                                                setSourceLang(detected)
+                                                setTranslateDeps((v) => ({
+                                                    ...v,
+                                                    text: editableText,
+                                                    sourceLang: detected,
+                                                }))
+                                            } else {
+                                                await setSettings({
+                                                    sourceLanguageLocked: true,
+                                                    pinnedSourceLanguage: sourceLang,
+                                                })
+                                            }
+                                        }}
+                                    >
+                                        {settings.sourceLanguageLocked ? (
+                                            <TbLock size={16} />
+                                        ) : (
+                                            <TbLockOpen size={16} />
+                                        )}
+                                    </div>
+                                </Tooltip>
                             </div>
                             <div
                                 className={styles.arrow}
