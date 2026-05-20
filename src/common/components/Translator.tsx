@@ -80,7 +80,7 @@ import { readFile } from '@tauri-apps/plugin-fs'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useDeepCompareCallback } from 'use-deep-compare'
 import { useTranslatorStore, setStoreTranslatedText, setStoreIsTranslating } from '../store'
-import useSWR from 'swr'
+import useSWR, { mutate as swrMutate } from 'swr'
 import {
     IPromotionResponse,
     checkShouldShowPromotionNotification,
@@ -636,6 +636,12 @@ function InnerTranslator(props: IInnerTranslatorProps) {
     const [showWordbookButtons, setShowWordbookButtons] = useState(false)
     const { t, i18n } = useTranslation()
     const { settings } = useSettings()
+    const persistSettingsPatch = useCallback(async (patch: Partial<typeof settings>) => {
+        await swrMutate('settings', (prev?: typeof settings) => (prev ? { ...prev, ...patch } : prev), {
+            revalidate: false,
+        })
+        await setSettings(patch)
+    }, [])
 
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1884,7 +1890,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                             sourceLang: langId,
                                         }))
                                         if (settings.sourceLanguageLocked) {
-                                            setSettings({ pinnedSourceLanguage: langId })
+                                            persistSettingsPatch({ pinnedSourceLanguage: langId })
                                         }
                                     }}
                                 />
@@ -1908,7 +1914,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                                 sourceLang: detected,
                                             }))
                                             if (settings.sourceLanguageLocked) {
-                                                setSettings({ pinnedSourceLanguage: detected })
+                                                persistSettingsPatch({ pinnedSourceLanguage: detected })
                                             }
                                         }}
                                     >
@@ -1931,7 +1937,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                         onClick={async () => {
                                             if (currentTranslateMode === 'explain-code') return
                                             if (settings.sourceLanguageLocked) {
-                                                await setSettings({ sourceLanguageLocked: false })
+                                                await persistSettingsPatch({ sourceLanguageLocked: false })
                                                 const detected = await detectLang(editableText)
                                                 setSourceLang(detected)
                                                 setTranslateDeps((v) => ({
@@ -1940,7 +1946,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                                     sourceLang: detected,
                                                 }))
                                             } else {
-                                                await setSettings({
+                                                await persistSettingsPatch({
                                                     sourceLanguageLocked: true,
                                                     pinnedSourceLanguage: sourceLang,
                                                 })
@@ -1972,7 +1978,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                     if (settings.sourceLanguageLocked) patch.pinnedSourceLanguage = newSource
                                     if (settings.targetLanguageLocked) patch.pinnedTargetLanguage = newTarget
                                     if (Object.keys(patch).length > 0) {
-                                        setSettings(patch)
+                                        persistSettingsPatch(patch)
                                     }
                                     editorRef.current?.focus()
                                 }}
@@ -2009,7 +2015,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                             targetLang: langId,
                                         }))
                                         if (settings.targetLanguageLocked) {
-                                            setSettings({ pinnedTargetLanguage: langId })
+                                            persistSettingsPatch({ pinnedTargetLanguage: langId })
                                         }
                                     }}
                                 />
@@ -2029,10 +2035,10 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                         onClick={async () => {
                                             if (currentTranslateMode === 'polishing') return
                                             if (settings.targetLanguageLocked) {
-                                                await setSettings({ targetLanguageLocked: false })
+                                                await persistSettingsPatch({ targetLanguageLocked: false })
                                                 stopAutomaticallyChangeTargetLang.current = false
                                             } else {
-                                                await setSettings({
+                                                await persistSettingsPatch({
                                                     targetLanguageLocked: true,
                                                     pinnedTargetLanguage: targetLang,
                                                 })
