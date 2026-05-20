@@ -7,6 +7,7 @@ import { listen, Event, emit } from '@tauri-apps/api/event'
 import { parse as bestEffortJSONParse } from 'best-effort-json-parser'
 import { commands } from '@/tauri/bindings'
 import { OPENAI_CHAT_COMPLETIONS_API_PATH, OPENAI_PREFERRED_DEFAULT_MODEL } from './openai-api-path'
+import { LANG_CONFIGS } from './lang/data'
 
 export const defaultAPIURL = 'https://api.openai.com'
 export const defaultAPIURLPath = OPENAI_CHAT_COMPLETIONS_API_PATH
@@ -64,6 +65,10 @@ const settingKeys: Record<keyof ISettings, number> = {
     autoTranslate: 1,
     defaultTranslateMode: 1,
     defaultTargetLanguage: 1,
+    sourceLanguageLocked: 1,
+    targetLanguageLocked: 1,
+    pinnedSourceLanguage: 1,
+    pinnedTargetLanguage: 1,
     alwaysShowIcons: 1,
     hotkey: 1,
     displayWindowHotkey: 1,
@@ -152,6 +157,25 @@ export async function getSettings(): Promise<ISettings> {
     }
     if (!settings.writingTargetLanguage) {
         settings.writingTargetLanguage = defaultWritingTargetLanguage
+    }
+    const isValidLangCode = (v: unknown): v is string => typeof v === 'string' && v in LANG_CONFIGS
+    if (typeof settings.sourceLanguageLocked !== 'boolean') {
+        settings.sourceLanguageLocked = false
+    }
+    if (typeof settings.targetLanguageLocked !== 'boolean') {
+        settings.targetLanguageLocked = false
+    }
+    if (!isValidLangCode(settings.pinnedSourceLanguage)) {
+        settings.pinnedSourceLanguage = undefined
+    }
+    if (!isValidLangCode(settings.pinnedTargetLanguage)) {
+        settings.pinnedTargetLanguage = undefined
+    }
+    if (settings.sourceLanguageLocked && !settings.pinnedSourceLanguage) {
+        settings.sourceLanguageLocked = false
+    }
+    if (settings.targetLanguageLocked && !settings.pinnedTargetLanguage) {
+        settings.targetLanguageLocked = false
     }
     if (settings.alwaysShowIcons === undefined || settings.alwaysShowIcons === null) {
         settings.alwaysShowIcons = !isTauri()
