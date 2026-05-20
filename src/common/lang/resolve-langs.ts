@@ -30,7 +30,7 @@ export async function resolveTranslationLangs(input: ResolveLangsInput): Promise
             ? settings.pinnedSourceLanguage
             : await input.detectFn(input.text)
 
-    const targetLang: LangCode = resolveTarget({
+    const targetLang: LangCode = resolveTargetLang({
         sourceLang,
         actionMode: input.actionMode,
         prevTargetLang: input.prevTargetLang,
@@ -41,7 +41,7 @@ export async function resolveTranslationLangs(input: ResolveLangsInput): Promise
     return { sourceLang, targetLang }
 }
 
-interface ResolveTargetInput {
+export interface ResolveTargetLangInput {
     sourceLang: LangCode
     actionMode: string | undefined
     prevTargetLang: LangCode | undefined
@@ -49,7 +49,7 @@ interface ResolveTargetInput {
     sessionTargetSuppressed: boolean
 }
 
-function resolveTarget(input: ResolveTargetInput): LangCode {
+export function resolveTargetLang(input: ResolveTargetLangInput): LangCode {
     const { settings } = input
 
     if (settings.targetLanguageLocked && settings.pinnedTargetLanguage) {

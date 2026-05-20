@@ -14,6 +14,7 @@ import { MdOutlineGrade, MdGrade, MdHistory } from 'react-icons/md'
 import * as mdIcons from 'react-icons/md'
 import { StatefulTooltip } from 'baseui-sd/tooltip'
 import { detectLang, getLangConfig, sourceLanguages, targetLanguages, LangCode } from '../lang'
+import { resolveTargetLang } from '../lang/resolve-langs'
 import { translate, TranslateMode } from '../translate'
 import { Select, Value, Option } from 'baseui-sd/select'
 import { RxEraser, RxEnter, RxReload, RxStop } from 'react-icons/rx'
@@ -956,30 +957,26 @@ function InnerTranslator(props: IInnerTranslatorProps) {
 
     const getTranslateDeps = useCallback(
         async function (text: string, action: Action): Promise<typeof translateDeps> {
-            const newSourceLang = await detectLang(text)
+            const newSourceLang: LangCode =
+                settings.sourceLanguageLocked && settings.pinnedSourceLanguage
+                    ? settings.pinnedSourceLanguage
+                    : await detectLang(text)
             setSourceLang(newSourceLang)
             return await new Promise((resolve) => {
-                const isTranslate = action.mode === 'translate'
-                setTargetLang((targetLang_) => {
-                    const newTargetLang = (() => {
-                        if (
-                            isTranslate &&
-                            (!stopAutomaticallyChangeTargetLang.current || newSourceLang === targetLang_)
-                        ) {
-                            return (
-                                (newSourceLang === 'zh-Hans' || newSourceLang === 'zh-Hant'
-                                    ? 'en'
-                                    : (settings?.defaultTargetLanguage as LangCode | undefined)) ?? 'en'
-                            )
-                        }
-                        if (!targetLang_) {
-                            if (settings?.defaultTargetLanguage) {
-                                return settings.defaultTargetLanguage as LangCode
-                            }
-                            return newSourceLang
-                        }
-                        return targetLang_
-                    })()
+                setTargetLang((prevTargetLang) => {
+                    const newTargetLang = resolveTargetLang({
+                        sourceLang: newSourceLang,
+                        actionMode: action.mode,
+                        prevTargetLang,
+                        settings: {
+                            defaultTargetLanguage: settings.defaultTargetLanguage,
+                            sourceLanguageLocked: settings.sourceLanguageLocked,
+                            targetLanguageLocked: settings.targetLanguageLocked,
+                            pinnedSourceLanguage: settings.pinnedSourceLanguage,
+                            pinnedTargetLanguage: settings.pinnedTargetLanguage,
+                        },
+                        sessionTargetSuppressed: stopAutomaticallyChangeTargetLang.current,
+                    })
                     setTranslateDeps((oldV) => {
                         const newV: typeof translateDeps = {
                             ...oldV,
@@ -994,7 +991,13 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                 })
             })
         },
-        [settings.defaultTargetLanguage]
+        [
+            settings.defaultTargetLanguage,
+            settings.sourceLanguageLocked,
+            settings.targetLanguageLocked,
+            settings.pinnedSourceLanguage,
+            settings.pinnedTargetLanguage,
+        ]
     )
 
     const { externalOriginalText } = useTranslatorStore()
