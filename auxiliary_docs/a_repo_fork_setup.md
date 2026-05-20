@@ -41,6 +41,7 @@ git push -u origin main
 git fetch upstream
 git merge upstream/main         # 或 git rebase upstream/main，看个人偏好
 git push origin main
+pnpm build-tauri                # 重新 build 本地 app（见下方「build 命令」）
 ```
 
 如果本地有自己的 feature 分支，rebase 更干净：
@@ -49,6 +50,48 @@ git push origin main
 git checkout my-feature
 git fetch upstream
 git rebase upstream/main
+```
+
+## Build 命令（重要：别用 `pnpm tauri build`）
+
+正确的 build 命令是 `pnpm build-tauri`（定义见 package.json），它等于：
+
+```
+tsc && vite build -c vite.config.tauri.ts   # 重新编译 frontend → dist/tauri/
+tauri build                                  # 打 Rust release + bundle .app/.dmg
+```
+
+如果直接跑 `pnpm tauri build`，**只会编 Rust 部分，frontend 不会被重 build**，结果是新 build 的 app 看不到你刚 merge 进来的 React 改动。tauri.conf.json 里 `build.beforeBuildCommand` 是空的，没人替你跑 vite。
+
+build 结束后 macOS 上的更新流程：
+
+```bash
+# symlink 已经在 /Applications，所以不需要 copy；只要刷一下 LaunchServices 让 Launchpad 拿到新 metadata
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "/Applications/NextAI Translator.app"
+```
+
+### 关于 build 末尾那行 `Error A public key has been found, but no private key`
+
+无害。它是 updater artifact 签名步骤，因为本地没有 `TAURI_SIGNING_PRIVATE_KEY`（也不需要——见下文 updater 策略）。`.app` 和 `.dmg` 已经 bundle 成功，可以正常用。
+
+## In-app Updater 策略
+
+`tauri.conf.json` 里 updater endpoint 指向 upstream 的 GitHub releases：
+
+```
+https://github.com/nextai-translator/nextai-translator/releases/latest/download/latest.json
+```
+
+为了让 updater 起到「真实的提醒」作用而不是误报：
+
+- 本地 `version`（三处：`tauri.conf.json` / `package.json` / `Cargo.toml`）始终对齐 upstream 当前最新 release 的 tag。这样只有 upstream 真发了新 release，app 才会弹更新窗
+- **绝对不要点弹窗里的「Update」按钮** —— Tauri updater 校验签名靠的是 `tauri.conf.json` 里 upstream 的 `pubkey`，签名验证会通过，然后会用 upstream 的官方二进制**直接覆盖你的 fork 版本**，你的所有 customization 就没了
+- 看到弹窗的正确动作：点 **Close** → terminal 跑「日常同步 upstream 更新」那段命令
+
+什么时候需要再次把本地 version 跟 upstream 对齐？每次 `git fetch upstream` 拉下来包含 `package.json` / `tauri.conf.json` version bump 的 commit 时，把那个值改成 upstream 当前的 release tag（不一定等于上游的 main HEAD 里写的版本号——以 GitHub Releases 页面为准）。可以用：
+
+```bash
+gh release view --repo nextai-translator/nextai-translator --json tagName
 ```
 
 ## License 提示

@@ -51,3 +51,29 @@
   - `gh repo view JaydonZhao/nextai-translator --json isFork,parent`（验证 `isFork=true`）
 - Docs updated:
   - `auxiliary_docs/a_repo_fork_setup.md`：新建，记录 remote 约定、建立步骤、同步流程、AGPL 提示
+
+---
+
+### 2026-05-20 — 拉取 upstream 更新 + 修正 build 流程 + 对齐 updater 版本号
+
+- Task description:
+  - 从 upstream merge 新 commit（thinkingEnabled 设置）；让本地 in-app updater 不再误报；确认正确的 build 命令
+- Changes made:
+  - `git merge upstream/main`（带入 upstream `99cba7f`：`feat: add thinkingEnabled setting`）；merge commit `7dc0b78`
+  - 三处 version `0.1.0` → `0.6.15`（对齐 upstream 当前最新 release tag）：`src-tauri/tauri.conf.json`、`package.json`、`src-tauri/Cargo.toml`；commit `33dd1c4`
+  - 用 `pnpm build-tauri` 重新 build（frontend + Rust 都 rebuild），symlink 自动指向新产物
+- Issues encountered:
+  - **build 完后新 feature 在 UI 里看不到**：根因是用了 `pnpm tauri build` 而不是 `pnpm build-tauri`。前者只编 Rust，**不会** rebuild frontend（`tauri.conf.json` 里 `beforeBuildCommand` 为空）。结果是 .app 里塞的还是旧 `dist/tauri/assets/index-*.js`
+  - **每次启动 app 都弹 updater 升级窗**：updater endpoint 指向 upstream releases，upstream 最新 release 是 0.6.15，本地 version 0.1.0 < 0.6.15 → 永远弹窗
+- Resolution steps:
+  - 改用 `pnpm build-tauri`：`tsc && vite build -c vite.config.tauri.ts && tauri build`
+  - 把本地 version 对齐到 upstream 当前 release tag（0.6.15），弹窗消失；以后只在 upstream 真发 release 时才弹
+- Commands/scripts executed:
+  - `git fetch upstream && git merge --no-edit upstream/main`
+  - `gh release view --repo nextai-translator/nextai-translator --json tagName`（确认 upstream 最新 release tag）
+  - `pnpm build-tauri`
+  - `pkill -f "NextAI Translator.app/Contents/MacOS/app" && lsregister -f "/Applications/NextAI Translator.app" && open "/Applications/NextAI Translator.app"`
+- Relevant configuration details:
+  - **In-app updater 是「通知工具」，不是「自动升级工具」**。看到弹窗 → 永远点 **Close** → terminal 跑 `git fetch upstream && git merge upstream/main && pnpm build-tauri`。**绝对不能点 Update**，否则 upstream 的二进制会通过签名校验直接覆盖本地 fork
+- Docs updated:
+  - `auxiliary_docs/a_repo_fork_setup.md`：加「Build 命令」「In-app Updater 策略」两节；「日常同步」加 `pnpm build-tauri` 步骤
