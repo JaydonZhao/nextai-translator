@@ -72,7 +72,7 @@ Open `src/common/types.ts`. 现有 78-85 行长这样：
 
 - [ ] **Step 2：跑 type check，确认编译过**
 
-Run: `pnpm exec tsc --noEmit -p tsconfig.app.json 2>&1 | head -40`
+Run: `pnpm exec tsc --noEmit 2>&1 | head -40`
 Expected: 会出现关于 `utils.ts` 里 `settingKeys` 缺 key 的错误（`Property 'sourceLanguageLocked' is missing in type ...`）。**这是预期的，下一 task 会修复**；不应有 `types.ts` 本身的错误。
 
 - [ ] **Step 3：Commit**
@@ -230,7 +230,7 @@ Expected: 4 个 case 全部 PASS。
 
 - [ ] **Step 7：跑 type check**
 
-Run: `pnpm exec tsc --noEmit -p tsconfig.app.json 2>&1 | tail -20`
+Run: `pnpm exec tsc --noEmit 2>&1 | tail -20`
 Expected: 没有与本次改动相关的新错误。
 
 - [ ] **Step 8：Commit**
@@ -477,7 +477,7 @@ Expected: 9 个 case 全部 PASS.
 
 - [ ] **Step 5：跑 type check**
 
-Run: `pnpm exec tsc --noEmit -p tsconfig.app.json 2>&1 | tail -20`
+Run: `pnpm exec tsc --noEmit 2>&1 | tail -20`
 Expected: 没有与本次改动相关的新错误。
 
 - [ ] **Step 6：Commit**
@@ -555,7 +555,7 @@ import { resolveTranslationLangs } from '../lang/resolve-langs'
 
 - [ ] **Step 3：跑 type check**
 
-Run: `pnpm exec tsc --noEmit -p tsconfig.app.json 2>&1 | tail -30`
+Run: `pnpm exec tsc --noEmit 2>&1 | tail -30`
 Expected: 没有与本次改动相关的新错误（如果出现 `Property 'mode' may be undefined` 之类，根据 Action 类型实际情况把 `action.mode` 写成 `action.mode ?? ''` 或保持 `string | undefined`，helper 的 `actionMode` 字段已声明为 `string | undefined`）。
 
 - [ ] **Step 4：跑 unit tests 确认未破坏现有行为**
@@ -776,7 +776,7 @@ import { setSettings } from '../utils'
 
 - [ ] **Step 4：跑 type check**
 
-Run: `pnpm exec tsc --noEmit -p tsconfig.app.json 2>&1 | tail -30`
+Run: `pnpm exec tsc --noEmit 2>&1 | tail -30`
 Expected: 无新错误。
 
 - [ ] **Step 5：Commit**
@@ -897,7 +897,7 @@ git commit -m "feat(translator): add source language lock and detect buttons"
 
 - [ ] **Step 2：跑 type check**
 
-Run: `pnpm exec tsc --noEmit -p tsconfig.app.json 2>&1 | tail -20`
+Run: `pnpm exec tsc --noEmit 2>&1 | tail -20`
 Expected: 无新错误。
 
 - [ ] **Step 3：Commit**
@@ -966,7 +966,7 @@ git commit -m "feat(translator): add target language lock button"
 
 - [ ] **Step 2：跑 type check**
 
-Run: `pnpm exec tsc --noEmit -p tsconfig.app.json 2>&1 | tail -20`
+Run: `pnpm exec tsc --noEmit 2>&1 | tail -20`
 Expected: 无新错误。
 
 - [ ] **Step 3：Commit**
@@ -987,7 +987,7 @@ Expected: PASS。
 
 - [ ] **Step 2：跑 type check 全量**
 
-Run: `pnpm exec tsc --noEmit -p tsconfig.app.json`
+Run: `pnpm exec tsc --noEmit`
 Expected: 0 errors.
 
 - [ ] **Step 3：启动 dev 模式手动验证以下 6 个 Journey/edge**
