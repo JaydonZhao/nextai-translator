@@ -68,10 +68,19 @@ Steps:
   - `rolePrompt`:声明角色为「目标语言下的资深讲解者」,任务是对所给文本提供深度解释 — 涵盖核心含义、关键术语、上下文/隐含信息、必要的背景知识。如源语言与目标语言不同,应在解释时点明原文中的关键表达
   - `commandPrompt`:要求用 `targetLangName` 输出,采用 Markdown 段落或要点列表,**禁止逐字翻译**
   - `contentPrompt`:`query.text`
-- **FR-8:** explain 子选中分支(`!query.writing && query.selectedWord` 非空):覆盖 FR-7 设定的三个 prompt 字段为 explain-fragment-in-context 模板:
-  - `rolePrompt`:声明角色为「在给定原文上下文中讲解片段的专家」;说明输入会包含「原文」与「片段」,任务是解释**片段在该原文中的具体含义、作用、隐含信息、与上下文的关系**;若片段是术语/惯用语/隐喻,应展开;3-5 个**与该用法语义相同**的额外例句(源语言),并在目标语言下解释
-  - `commandPrompt`:确认理解并请求输入(模仿现有 sentence+word 模板的双轮对话风格)
-  - `contentPrompt`:`the original text is: {query.text}\n\nthe fragment is: {query.selectedWord}`
+- **FR-8:** explain 子选中分支(`!query.writing && query.selectedWord` 非空):覆盖 FR-7 设定的三个 prompt 字段为 explain-fragment-in-context 模板,使用 XML tag 显式分隔输入边界、采用单轮纯指令风格:
+  - `rolePrompt`:声明角色为「在给定原文上下文中讲解片段的专家」;**告知输入会包含 `<original_text>` 与 `<fragment>` 两个 XML tag 块**;任务是解释**片段在该原文中的具体含义、作用、隐含信息、与上下文的关系**;若片段是术语/惯用语/隐喻,应展开;3-5 个**与该用法语义相同**的额外例句(源语言),并在目标语言下解释;明确要求 Markdown 输出且不要寒暄
+  - `commandPrompt`:**单轮纯指令**(不再使用 `Yes, I understand...` 风格的伪 assistant 回合 — 该 few-shot priming 技巧对现代 frontier 模型不仅无收益,反而可能因模型识破"单条 user message 内伪装多轮对话"的格式而干扰理解),形如 `Explain the <fragment> in the context of the <original_text>, following the structure above.`
+  - `contentPrompt`:用 XML tag 显式包裹两段输入,避免原文含标点/引号/换行时的边界歧义:
+    ```
+    <original_text>
+    {query.text}
+    </original_text>
+
+    <fragment>
+    {query.selectedWord}
+    </fragment>
+    ```
 - **FR-9:** explain 分支末尾必须 `break`;**禁止**让 `case 'translate'` 的 selectedWord 模板被 explain 模式无意调用
 - **FR-10:** explain 模式下,`query.text.length < 5 && toChinese` 的「中文短词组多译」分支、`isAWord(...)` 的单词模式分支(均位于 `case 'translate'` 内)**不**应被触发
 

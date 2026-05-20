@@ -187,10 +187,18 @@ describe('buildExplainPrompts', () => {
         expect(result.rolePrompt).toMatch(/context/i)
         expect(result.rolePrompt).toContain('English')
         expect(result.rolePrompt).toContain('Chinese')
-        expect(result.commandPrompt).toMatch(/yes|understand/i)
-        expect(result.contentPrompt).toContain('the original text is:')
+        // rolePrompt must NOT use the fake-confirmation dialog hack
+        expect(result.rolePrompt).not.toMatch(/if you understand,?\s+say/i)
+        // commandPrompt is a real imperative referencing the tagged sections
+        expect(result.commandPrompt).toMatch(/explain/i)
+        expect(result.commandPrompt).toContain('<fragment>')
+        expect(result.commandPrompt).toContain('<original_text>')
+        // contentPrompt wraps the two payloads in XML tags
+        expect(result.contentPrompt).toContain('<original_text>')
+        expect(result.contentPrompt).toContain('</original_text>')
+        expect(result.contentPrompt).toContain('<fragment>')
+        expect(result.contentPrompt).toContain('</fragment>')
         expect(result.contentPrompt).toContain(query.text)
-        expect(result.contentPrompt).toContain('the fragment is:')
         expect(result.contentPrompt).toContain(query.selectedWord)
     })
 

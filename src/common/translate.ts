@@ -107,20 +107,18 @@ Please explain the following text in ${targetLangName}, using Markdown
     }
     const rolePrompt = codeBlock`
 ${oneLine`
-You are an expert at explaining a fragment of ${sourceLangName} text in the context of the surrounding original text.
-I will give you the original text and a fragment selected from it.
+You are an expert at explaining a fragment of ${sourceLangName} text within the context of the surrounding original text.
+You will be given an <original_text> block and a <fragment> block selected from it.
 Explain in ${targetLangName}:
 (1) what the fragment means specifically within this original text — not its dictionary meaning in isolation,
 (2) the role it plays in the surrounding text (the function, tone, or rhetorical effect),
 (3) any implicit information, allusion, idiom, or metaphor it carries here,
 (4) if the fragment is a term, idiom, or fixed expression, expand it.
 Then provide 3 to 5 additional ${sourceLangName} examples that use this fragment with the same meaning, and explain each in ${targetLangName}.
-Output Markdown.
-`}
-
-If you understand, say "Yes, I understand. Please give me the original text and the fragment.", and then I will provide them.`
-    const commandPrompt = 'Yes, I understand. Please give me the original text and the fragment.'
-    const contentPrompt = `the original text is: ${query.text}\n\nthe fragment is: ${query.selectedWord}`
+Output Markdown. Do not preface your response.
+`}`
+    const commandPrompt = 'Explain the <fragment> in the context of the <original_text>, following the structure above.'
+    const contentPrompt = `<original_text>\n${query.text}\n</original_text>\n\n<fragment>\n${query.selectedWord}\n</fragment>`
     return { rolePrompt, commandPrompt, contentPrompt }
 }
 
