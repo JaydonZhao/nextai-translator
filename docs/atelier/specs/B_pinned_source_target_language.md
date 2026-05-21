@@ -136,6 +136,29 @@ Steps:
 
 被 pin 的语言值类型应使用与现有 dropdown 一致的 `LangCode` 字符串。Lock 字段单独使用 boolean 表示，避免用 "空字符串 vs 非空字符串" 这种隐式语义。
 
+## Mode × Lock 作用矩阵（澄清）
+
+此处汇总 FR-A4/A5/A6 + FR-B2 在不同 `currentTranslateMode` 下的实际效果，便于后续 review 与 QA 对照：
+
+| Mode | Source 下拉 | Target 下拉 | Source lock 作用 | Target lock 作用 |
+|---|---|---|---|---|
+| `translate` | enabled | enabled | 阻断 detect 改写 + 跨重启保留 pin 值 | **两项**：① 阻断 CN→EN swap heuristic；② 跨重启保留 pin 值 |
+| `summarize` / `explain` / `analyze` 等其他**非 polishing/explain-code** 的 mode | enabled | enabled | 同 translate 的 source 行为 | **仅一项**：跨重启保留 pin 值。CN→EN swap heuristic 本来就只在 translate mode 触发（`resolveTargetLang` 的 `isTranslate` 守卫），所以在这些 mode 下没有 heuristic 需要 lock 去阻断 |
+| `explain-code` | **disabled** | enabled | Source lock 按钮跟随下拉一起 disabled，**零作用**（FR-A4） | 与上一行相同 |
+| `polishing` | enabled | **disabled** | 同 translate 的 source 行为 | Target lock 按钮跟随下拉一起 disabled，**零作用**（FR-A5） |
+| `writing` | （走独立组件，不在本设计范围） | （走独立组件） | 不渲染或全部 disabled（FR-A6） | 不渲染或全部 disabled（FR-A6） |
+
+**"跨重启保留 pin 值"的可见差异条件：** 仅当 `pinnedTargetLanguage ≠ defaultTargetLanguage` 时，target lock 在非 translate mode 下才产生用户能观察到的差异。例如 `defaultTargetLanguage = zh-Hans`、用户在 explain mode 把 target 选成 `ja` 并 lock，重启 app → 有 lock target 是 `ja`，没 lock 则回到 `zh-Hans`。
+
+### 设计理由：为什么 target lock 在所有 target-enabled mode 都显示，而非只在 translate
+
+考虑过"只在 translate mode 显示 target lock"以匹配它"两项作用 vs 一项作用"的强弱差异，但选择**全显**，理由：
+
+1. **视觉一致性**：source lock 在所有 source-enabled mode 都显示；target lock 跟随同样规则，认知负担小。
+2. **跨重启保留 pin 值这一作用合法**，即便比 heuristic 阻断弱也不是无用功（对应上表"可见差异条件"那段）。
+3. **避免切 mode 时按钮跳变**：button 出现/消失会让 header 视觉抖动。
+4. 若未来发现 target lock 在非 translate mode 下让用户误判（"以为它在保护什么但其实没"），首选方案是 **tooltip 文案精化**（例如改成 "Pin target language across restarts"），而非整体隐藏按钮。
+
 ## Edge Cases and Error Handling
 
 - **Settings 中 lock=true 但 pin 值缺失**：按 FR-C3 处理，视为未锁定并修正 settings。
