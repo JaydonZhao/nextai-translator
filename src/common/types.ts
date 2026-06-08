@@ -85,6 +85,7 @@ export interface ISettings {
     hotkey?: string
     displayWindowHotkey?: string
     ocrHotkey?: string
+    quickTranslatorHotkey?: string
     writingTargetLanguage: string
     writingHotkey?: string
     writingNewlineHotkey?: string
