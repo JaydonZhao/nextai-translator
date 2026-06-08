@@ -95,3 +95,33 @@
   - `pnpm exec tsc --noEmit`（clean）
 - References:
   - 受影响代码路径：`buildExplainPrompts` fragment 分支（translate.ts:108-122）
+
+---
+
+### 2026-06-08 — 同步 upstream 5 个 commit + 对齐版本号到 0.6.19
+
+- Task description:
+  - upstream（`nextai-translator/nextai-translator`）发布了新更新，把这 5 个 commit sync 到个人 fork；顺手修掉本地一直失败的 7 个 openai engine 测试，并让 in-app updater 不再误报
+- Changes made:
+  - `git merge upstream/main`（merge commit `b7b6b90`），带入 5 个 upstream commit：
+    - `07c8add` writing 模式动画从 Backspace 改为浮动 HUD（大改：新增 `src/common/components/QuickTranslator.tsx`、`src/tauri/windows/{QuickTranslatorWindow,WritingIndicatorWindow}.tsx`、`src-tauri/src/ax_context.rs`）
+    - `58fa800` 新增 "Insert into previous input" 快捷键
+    - `ae35788` 只对支持的模型发 `reasoning_effort:none`（**正是这个修掉了本地 7 个失败测试**）
+    - `f3445be` Ollama 通过 `reasoning_effort:none` 关 thinking
+    - `96c62a0` 修隐藏预创建窗口的 idle CPU 占用
+  - 版本号三处 + lock 文件 `0.6.15` → `0.6.19`（对齐 upstream 当前最新 release tag）：`src-tauri/tauri.conf.json`、`package.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`（`app` 包）
+- Issues encountered:
+  - merge 前本地 `pnpm exec vitest run` 有 7 个失败，全在 `abstract-openai.spec.ts`。根因是上一轮 merge 进来的 `thinkingEnabled` 设置（`abstract-openai.ts` 旧逻辑无条件给所有模型发 `reasoning_effort:'none'`，但测试期望对不支持的模型不发 / 发 `'low'`）。属于 upstream 自己引入又自己在 `ae35788` 修掉的回归，本地无需手动改
+- Resolution steps:
+  - 先做 `git merge --no-commit --no-ff upstream/main` 试合并探测冲突 → **零冲突**（重叠文件 `Translator.tsx` / `types.ts` / `utils.ts` 全部 auto-merge 成功，lock 功能与 upstream writing HUD 共存）→ `git merge --abort` 还原 → 确认后正式 merge
+  - merge 后 `vitest run` 43 tests 全绿（含 lock 功能 `resolve-langs` 9 + `settings-lang-lock` 4，explain 13）
+- Commands/scripts executed:
+  - `git fetch upstream && git merge --no-edit upstream/main`
+  - `gh release view --repo nextai-translator/nextai-translator --json tagName`（确认最新 release tag = `v0.6.19`）
+  - `pnpm exec vitest run`（43 pass）、`pnpm exec tsc --noEmit`（clean）
+  - `pnpm build-tauri`（`.app` / `.dmg` / `.tar.gz` 三个 bundle 成功，版本 0.6.19；末尾 `BUILD_EXIT:1` 仍是 updater 签名 step 因无 `TAURI_SIGNING_PRIVATE_KEY` 报错，预期无害）
+  - `lsregister -f "/Applications/NextAI Translator.app"`（刷新 Launchpad metadata）
+- Pending（未做，等用户确认）：
+  - **未 `git push origin main`**：push 是 outward-facing 动作，留给用户决定何时推 fork
+- References:
+  - merge commit `b7b6b90`；同步流程见 `auxiliary_docs/a_repo_fork_setup.md`

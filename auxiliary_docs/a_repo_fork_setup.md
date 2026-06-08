@@ -84,7 +84,8 @@ https://github.com/nextai-translator/nextai-translator/releases/latest/download/
 
 为了让 updater 起到「真实的提醒」作用而不是误报：
 
-- 本地 `version`（三处：`tauri.conf.json` / `package.json` / `Cargo.toml`）始终对齐 upstream 当前最新 release 的 tag。这样只有 upstream 真发了新 release，app 才会弹更新窗
+- 本地 `version`（**四处**：`tauri.conf.json` / `package.json` / `Cargo.toml` / `Cargo.lock` 里的 `app` 包）始终对齐 upstream 当前最新 release 的 tag。这样只有 upstream 真发了新 release，app 才会弹更新窗。
+  - `Cargo.lock` 容易被漏：`Cargo.toml` 改了版本后，`Cargo.lock` 里 `[[package]] name = "app"` 那条的 `version` 也要同步改，否则 `pnpm build-tauri` 时 cargo 会自动改它、多出一行计划外 diff
 - **绝对不要点弹窗里的「Update」按钮** —— Tauri updater 校验签名靠的是 `tauri.conf.json` 里 upstream 的 `pubkey`，签名验证会通过，然后会用 upstream 的官方二进制**直接覆盖你的 fork 版本**，你的所有 customization 就没了
 - 看到弹窗的正确动作：点 **Close** → terminal 跑「日常同步 upstream 更新」那段命令
 
@@ -93,6 +94,27 @@ https://github.com/nextai-translator/nextai-translator/releases/latest/download/
 ```bash
 gh release view --repo nextai-translator/nextai-translator --json tagName
 ```
+
+### 为什么 upstream 源码里 `version` 永远是 `0.1.0`
+
+这是最容易困惑的一点：从 GitHub 拉 upstream 代码，version 字段**不会**带来真实版本号，永远是 `0.1.0`。原因不是被 `.gitignore`（它正常被 git 追踪），而是：
+
+> upstream 的真实版本号由 **CI 在打 release 那一刻临时注入产物，从不回写进 git**。
+
+发布流水线大致是：打 tag `v0.6.19` → CI 触发 → CI 临时把源码里的 `0.1.0` 替换成 `0.6.19` → 编译打包 → `.dmg` 传到 Releases → 那行临时改动**丢弃，不 push 回 main**。所以源码 main HEAD 里永远停在占位值 `0.1.0`（历史上手改过 `0.0.14`→`1.0.0` 几次，后来改用 CI 注入就不动了）。
+
+```
+GitHub Releases 页的 tag  v0.6.19   ← 真实版本，事实来源（由 CI 生成）
+源码 package.json 里        "0.1.0"   ← 永远的占位符，从不更新
+```
+
+**对 fork 的含义**：你没有这条 CI 流水线，本地 `pnpm build-tauri` 手动出包时没人替你注入版本号，所以**必须自己手写**这四处版本号。这不是 upstream 该带给你的东西，而是 fork 特有的本地补丁。
+
+> 顺带解释「为什么 merge 后版本号没被拽回 `0.1.0`」：merge 时你本地的值（上次写的 `0.6.15`）和 upstream 的 `0.1.0` 没有发生行冲突，git 三方合并保留了你的值。所以日常只需把它从上次的旧 release tag 改成最新 tag，而不是每次都从 `0.1.0` 重写。
+
+### merge 后这几个版本号改动要单独 commit
+
+`git merge upstream/main` 这一步**自带一个 merge commit**，upstream 的所有改动都已封进去、已提交。但 merge **之后**你手动做的两件事——bump 四处版本号、写 task log——git 不会自动塞进那个已定型的 merge commit，它们会以「未提交改动」躺在工作树里，需要**另起一个 commit** 收纳（例如 `chore: sync upstream to vX.Y.Z and align version`）。看到这几个未提交文件是预期的，不是出错。
 
 ## License 提示
 
