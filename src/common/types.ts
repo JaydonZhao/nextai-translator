@@ -3,6 +3,7 @@ import { TranslateMode } from './translate'
 import { TTSProvider } from './tts/types'
 import { Provider } from './engines'
 import { LangCode } from './lang'
+import type { SidebarPosition } from './history-sidebar'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface ISync {
@@ -81,6 +82,8 @@ export interface ISettings {
     targetLanguageLocked: boolean
     pinnedSourceLanguage?: LangCode
     pinnedTargetLanguage?: LangCode
+    sidebarPosition: SidebarPosition
+    sidebarWidth: number
     alwaysShowIcons: boolean
     hotkey?: string
     displayWindowHotkey?: string
