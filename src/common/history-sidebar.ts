@@ -84,3 +84,7 @@ export function sidebarLayoutOffsets(
     }
     return { contentPaddingLeft: 0, contentPaddingRight: 0, barLeft: undefined, barRight: undefined }
 }
+
+// localStorage key used to hand the active action's scope to a freshly-opened standalone
+// history window (Tauri webviews share localStorage origin). FR-19.
+export const HISTORY_WINDOW_SCOPE_KEY = 'history_window_initial_scope'

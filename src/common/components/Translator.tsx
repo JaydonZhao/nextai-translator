@@ -61,7 +61,13 @@ import { actionService } from '../services/action'
 import { historyService } from '../services/history'
 import { ActionManager } from './ActionManager'
 import { TranslationHistory } from './TranslationHistory'
-import { nextSidebarPosition } from '../history-sidebar'
+import {
+    nextSidebarPosition,
+    clampSidebarWidth,
+    sidebarActionScope,
+    sidebarLayoutOffsets,
+    HISTORY_WINDOW_SCOPE_KEY,
+} from '../history-sidebar'
 import { useSidebarWindowWidth } from '../hooks/useSidebarWindowWidth'
 import { GrMoreVertical } from 'react-icons/gr'
 import { StatefulPopover } from 'baseui-sd/popover'
@@ -645,7 +651,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
         await setSettings(patch)
     }, [])
 
-    const { showSidebar, hideSidebar } = useSidebarWindowWidth()
+    const { showSidebar, hideSidebar, resizeSidebar } = useSidebarWindowWidth()
     // Non-Tauri builds never show the docked sidebar (FR-5); they keep the modal.
     const sidebarPosition = isTauri() ? settings.sidebarPosition : 'hidden'
     const [draftSidebarWidth, setDraftSidebarWidth] = useState(settings.sidebarWidth)
@@ -759,6 +765,53 @@ function InnerTranslator(props: IInnerTranslatorProps) {
     }, [selectedWord, highlightWords])
 
     const [activateAction, setActivateAction] = useState<Action>()
+
+    const sidebarVisible = sidebarPosition === 'left' || sidebarPosition === 'right'
+    const sidebarScope = useMemo(() => sidebarActionScope(activateAction), [activateAction])
+    const sidebarOffsets = sidebarLayoutOffsets(sidebarVisible ? sidebarPosition : 'hidden', draftSidebarWidth)
+    const handleSidebarResizeStart = useCallback(
+        (event: React.PointerEvent) => {
+            event.preventDefault()
+            // Dragging away from the window edge widens the sidebar:
+            // left sidebar -> drag right (+x); right sidebar -> drag left (-x).
+            const direction = sidebarPosition === 'left' ? 1 : -1
+            let lastX = event.clientX
+            let latestWidth = draftSidebarWidth
+            const onMove = (e: PointerEvent) => {
+                const dx = (e.clientX - lastX) * direction
+                lastX = e.clientX
+                const next = clampSidebarWidth(latestWidth + dx)
+                if (next !== latestWidth) {
+                    void resizeSidebar(next - latestWidth) // grow/shrink the OS window by the same delta
+                    latestWidth = next
+                    setDraftSidebarWidth(next)
+                }
+            }
+            const onUp = () => {
+                window.removeEventListener('pointermove', onMove)
+                window.removeEventListener('pointerup', onUp)
+                void persistSettingsPatch({ sidebarWidth: latestWidth }) // FR-9: persist final width
+            }
+            window.addEventListener('pointermove', onMove)
+            window.addEventListener('pointerup', onUp)
+        },
+        [sidebarPosition, draftSidebarWidth, resizeSidebar, persistSettingsPatch]
+    )
+    const handleSidebarDetach = useCallback(async () => {
+        // Hand off the current action scope so the window opens pre-filtered (FR-19).
+        try {
+            localStorage.setItem(HISTORY_WINDOW_SCOPE_KEY, JSON.stringify(sidebarActionScope(activateAction)))
+        } catch (error) {
+            console.error('Failed to stash history window scope', error)
+        }
+        const { commands } = await import('@/tauri/bindings')
+        await commands.showHistoryWindow()
+        // FR-20: auto-hide the docked sidebar and restore the window width.
+        if (sidebarPosition === 'left' || sidebarPosition === 'right') {
+            await hideSidebar(draftSidebarWidth)
+        }
+        await persistSettingsPatch({ sidebarPosition: 'hidden' })
+    }, [activateAction, sidebarPosition, draftSidebarWidth, hideSidebar, persistSettingsPatch])
 
     const currentTranslateMode = useMemo(() => {
         editorRef.current?.focus()
@@ -1898,7 +1951,17 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                     display: !showSettings ? 'block' : 'none',
                 }}
             >
-                <div style={props.containerStyle}>
+                <div
+                    style={{
+                        ...props.containerStyle,
+                        ...(sidebarVisible
+                            ? {
+                                  paddingLeft: sidebarOffsets.contentPaddingLeft,
+                                  paddingRight: sidebarOffsets.contentPaddingRight,
+                              }
+                            : {}),
+                    }}
+                >
                     <div
                         ref={headerRef}
                         className={styles.popupCardHeaderContainer}
@@ -1907,6 +1970,9 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                             cursor: isDesktopApp() ? 'default' : showLogo ? 'move' : 'default',
                             boxShadow: isDesktopApp() && !isScrolledToTop ? theme.lighting.shadow600 : undefined,
                             background: settings.enableBackgroundBlur ? 'transparent' : '',
+                            left: sidebarVisible ? sidebarOffsets.barLeft : undefined,
+                            right: sidebarVisible ? sidebarOffsets.barRight : undefined,
+                            width: sidebarVisible ? 'auto' : undefined,
                         }}
                     >
                         {showLogo ? (
@@ -2855,6 +2921,9 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                     style={{
                         boxShadow: isScrolledToBottom ? undefined : theme.lighting.shadow700,
                         backgroundColor: getFooterBackgroundColor(),
+                        left: sidebarVisible ? sidebarOffsets.barLeft : undefined,
+                        right: sidebarVisible ? sidebarOffsets.barRight : undefined,
+                        width: sidebarVisible ? 'auto' : undefined,
                     }}
                 >
                     <Tooltip content={showSettings ? t('Go to Translator') : t('Go to Settings')} placement='right'>
@@ -3049,6 +3118,48 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                     onRestore={handleHistoryRestore}
                 />
             ) : null}
+            {sidebarVisible && (
+                <aside
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        bottom: 0,
+                        left: sidebarPosition === 'left' ? 0 : undefined,
+                        right: sidebarPosition === 'right' ? 0 : undefined,
+                        width: draftSidebarWidth,
+                        zIndex: 1001,
+                        display: 'flex',
+                        flexDirection: sidebarPosition === 'left' ? 'row' : 'row-reverse',
+                        background: theme.colors.backgroundPrimary,
+                        boxShadow: themeType === 'dark' ? '0 0 12px rgba(0,0,0,0.5)' : '0 0 12px rgba(0,0,0,0.12)',
+                    }}
+                >
+                    <div style={{ flex: 1, minWidth: 0, height: '100%' }}>
+                        <TranslationHistory
+                            variant='sidebar'
+                            isOpen
+                            actions={actions ?? []}
+                            activeActionId={activateAction?.id}
+                            lockedActionId={sidebarScope.actionId}
+                            lockedActionMode={sidebarScope.actionMode}
+                            onClose={() => undefined}
+                            onRestore={handleHistoryRestore}
+                            onDetach={handleSidebarDetach}
+                        />
+                    </div>
+                    <div
+                        role='separator'
+                        aria-orientation='vertical'
+                        onPointerDown={handleSidebarResizeStart}
+                        style={{
+                            width: 6,
+                            cursor: 'col-resize',
+                            flexShrink: 0,
+                            background: themeType === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                        }}
+                    />
+                </aside>
+            )}
             <Toaster />
         </div>
     )
