@@ -8,12 +8,13 @@ import { createUseStyles } from 'react-jss'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '../hooks/useTheme'
 import { HistoryItem, Action } from '../internal-services/db'
+import type { TranslateMode } from '../translate'
 import { historyService } from '../services/history'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Tooltip } from './Tooltip'
 import { LuStar, LuStarOff } from 'react-icons/lu'
 import { RxTrash, RxCopy } from 'react-icons/rx'
-import { MdReplay } from 'react-icons/md'
+import { MdReplay, MdOpenInNew } from 'react-icons/md'
 import color from 'color'
 import toast from 'react-hot-toast/headless'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
@@ -25,7 +26,15 @@ interface TranslationHistoryProps {
     activeActionId?: number
     onClose: () => void
     onRestore: (item: HistoryItem) => void
-    variant?: 'modal' | 'window'
+    variant?: 'modal' | 'window' | 'sidebar'
+    // Sidebar variant: lock the list to a single action ("page") and hide the action selector.
+    lockedActionId?: number
+    lockedActionMode?: TranslateMode
+    // Sidebar variant: show a "pop out to window" button in the header.
+    onDetach?: () => void
+    // Window variant: seed the action filter when the window is opened from a scoped sidebar.
+    initialActionId?: number
+    initialActionMode?: TranslateMode
 }
 
 const useStyles = createUseStyles({
@@ -133,6 +142,26 @@ const useStyles = createUseStyles({
         gap: '16px',
         minHeight: 0,
     },
+    sidebarRoot: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        boxSizing: 'border-box',
+        gap: '12px',
+        padding: '14px 12px 12px 12px',
+        minWidth: 0,
+    },
+    sidebarHeader: {
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '8px',
+    },
+    sidebarTitle: {
+        fontSize: '15px',
+        fontWeight: 600,
+    },
 })
 
 const ALL_ACTIONS_OPTION_ID = '__all__'
@@ -156,7 +185,8 @@ function useActionOptions(actions: Action[], t: (key: string) => string): Option
 
 export function TranslationHistory(props: TranslationHistoryProps) {
     const { isOpen, onClose, actions, activeActionId, onRestore, variant = 'modal' } = props
-    const isModal = variant !== 'window'
+    const isModal = variant === 'modal'
+    const isSidebar = variant === 'sidebar'
     const isActive = isModal ? isOpen : true
     const { t } = useTranslation()
     const { theme, themeType } = useTheme()
@@ -166,7 +196,9 @@ export function TranslationHistory(props: TranslationHistoryProps) {
     const [search, setSearch] = useState('')
     const [favoritesOnly, setFavoritesOnly] = useState(false)
     const actionsOptions = useActionOptions(actions, t)
-    const [selectedActionId, setSelectedActionId] = useState<string | number>(ALL_ACTIONS_OPTION_ID)
+    const [selectedActionId, setSelectedActionId] = useState<string | number>(
+        props.initialActionId ?? props.initialActionMode ?? ALL_ACTIONS_OPTION_ID
+    )
     const selectedActionOption = useMemo(() => {
         return actionsOptions.find((option) => option.id === selectedActionId) ?? actionsOptions[0]
     }, [actionsOptions, selectedActionId])
@@ -233,20 +265,39 @@ export function TranslationHistory(props: TranslationHistoryProps) {
             if (!isActive) {
                 return []
             }
+            const scopedActionId = isSidebar
+                ? props.lockedActionId
+                : selectedActionId === ALL_ACTIONS_OPTION_ID
+                ? undefined
+                : typeof selectedActionData?.id === 'number'
+                ? selectedActionData.id
+                : undefined
+            const scopedActionMode = isSidebar
+                ? props.lockedActionId === undefined
+                    ? props.lockedActionMode
+                    : undefined
+                : selectedActionId === ALL_ACTIONS_OPTION_ID
+                ? undefined
+                : selectedActionData?.mode
             return historyService.list({
                 search,
                 favoritesOnly,
                 limit: 200,
-                actionId:
-                    selectedActionId === ALL_ACTIONS_OPTION_ID
-                        ? undefined
-                        : typeof selectedActionData?.id === 'number'
-                        ? selectedActionData.id
-                        : undefined,
-                actionMode: selectedActionId === ALL_ACTIONS_OPTION_ID ? undefined : selectedActionData?.mode,
+                actionId: scopedActionId,
+                actionMode: scopedActionMode,
             })
         },
-        [isActive, search, favoritesOnly, selectedActionId, selectedActionData?.id, selectedActionData?.mode],
+        [
+            isActive,
+            isSidebar,
+            search,
+            favoritesOnly,
+            selectedActionId,
+            selectedActionData?.id,
+            selectedActionData?.mode,
+            props.lockedActionId,
+            props.lockedActionMode,
+        ],
         []
     )
 
@@ -301,7 +352,7 @@ export function TranslationHistory(props: TranslationHistoryProps) {
         </>
     )
 
-    const renderControls = (styleOverride?: React.CSSProperties) => (
+    const renderControls = (styleOverride?: React.CSSProperties, options?: { hideActionSelect?: boolean }) => (
         <div className={styles.controls} style={styleOverride} data-tauri-drag-ignore='true'>
             <Input
                 inputRef={searchInputRef}
@@ -312,16 +363,18 @@ export function TranslationHistory(props: TranslationHistoryProps) {
                 onChange={(e) => setSearch(e.currentTarget.value)}
                 onClear={() => setSearch('')}
             />
-            <Select
-                size='compact'
-                clearable={false}
-                options={actionsOptions}
-                value={selectValue}
-                onChange={({ value }) => {
-                    const nextId = (value[0]?.id ?? ALL_ACTIONS_OPTION_ID) as string | number
-                    setSelectedActionId((current) => (current === nextId ? current : nextId))
-                }}
-            />
+            {!options?.hideActionSelect && (
+                <Select
+                    size='compact'
+                    clearable={false}
+                    options={actionsOptions}
+                    value={selectValue}
+                    onChange={({ value }) => {
+                        const nextId = (value[0]?.id ?? ALL_ACTIONS_OPTION_ID) as string | number
+                        setSelectedActionId((current) => (current === nextId ? current : nextId))
+                    }}
+                />
+            )}
             <Checkbox checked={favoritesOnly} onChange={(event) => setFavoritesOnly(event.currentTarget.checked)}>
                 {t('Favorites Only')}
             </Checkbox>
@@ -524,15 +577,49 @@ export function TranslationHistory(props: TranslationHistoryProps) {
                     justifyContent: isModal ? 'flex-start' : 'flex-end',
                 }}
             >
-                <Button size='compact' kind='tertiary' onClick={onClose}>
-                    {t('Close')}
-                </Button>
+                {!isSidebar && (
+                    <Button size='compact' kind='tertiary' onClick={onClose}>
+                        {t('Close')}
+                    </Button>
+                )}
                 <Button size='compact' kind='secondary' onClick={onClear} disabled={!isActive || !historyItems?.length}>
                     {t('Clear History')}
                 </Button>
             </div>
         </div>
     )
+
+    if (isSidebar) {
+        return (
+            <div
+                className={styles.sidebarRoot}
+                style={{
+                    background: theme.colors.backgroundPrimary,
+                    color: theme.colors.contentPrimary,
+                }}
+            >
+                <div className={styles.sidebarHeader}>
+                    <div className={styles.sidebarTitle}>{headerTitle}</div>
+                    {props.onDetach && (
+                        <Tooltip content={t('Open in separate window')} placement='bottom'>
+                            <Button
+                                size='mini'
+                                kind='tertiary'
+                                onClick={() => props.onDetach?.()}
+                                overrides={{
+                                    BaseButton: { style: { paddingLeft: '6px', paddingRight: '6px' } },
+                                }}
+                            >
+                                <MdOpenInNew size={16} />
+                            </Button>
+                        </Tooltip>
+                    )}
+                </div>
+                {renderControls({ gridTemplateColumns: '1fr auto' }, { hideActionSelect: true })}
+                {bodyContent}
+            </div>
+        )
+    }
 
     if (!isModal) {
         return (
