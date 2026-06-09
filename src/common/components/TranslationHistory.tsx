@@ -14,7 +14,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Tooltip } from './Tooltip'
 import { LuStar, LuStarOff } from 'react-icons/lu'
 import { RxTrash, RxCopy } from 'react-icons/rx'
-import { MdReplay, MdOpenInNew } from 'react-icons/md'
+import { MdReplay, MdOpenInNew, MdExpandMore, MdExpandLess } from 'react-icons/md'
 import color from 'color'
 import toast from 'react-hot-toast/headless'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
@@ -32,6 +32,8 @@ interface TranslationHistoryProps {
     lockedActionMode?: TranslateMode
     // Sidebar variant: show a "pop out to window" button in the header.
     onDetach?: () => void
+    // Sidebar variant: extra top padding so the header clears the macOS traffic lights.
+    headerExtraTopInset?: number
     // Window variant: seed the action filter when the window is opened from a scoped sidebar.
     initialActionId?: number
     initialActionMode?: TranslateMode
@@ -195,6 +197,23 @@ export function TranslationHistory(props: TranslationHistoryProps) {
     const searchInputRef = useRef<HTMLInputElement>(null)
     const [search, setSearch] = useState('')
     const [favoritesOnly, setFavoritesOnly] = useState(false)
+    // Each record is collapsed by default; expand on demand to keep long texts from
+    // flooding the list (especially in the narrow sidebar).
+    const [expandedIds, setExpandedIds] = useState<ReadonlySet<number>>(() => new Set())
+    const toggleExpanded = useCallback((id?: number) => {
+        if (id === undefined) {
+            return
+        }
+        setExpandedIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(id)) {
+                next.delete(id)
+            } else {
+                next.add(id)
+            }
+            return next
+        })
+    }, [])
     const actionsOptions = useActionOptions(actions, t)
     const [selectedActionId, setSelectedActionId] = useState<string | number>(
         props.initialActionId ?? props.initialActionMode ?? ALL_ACTIONS_OPTION_ID
@@ -405,6 +424,7 @@ export function TranslationHistory(props: TranslationHistoryProps) {
                             actions.find((action) => action.id === item.actionId) ??
                             actions.find((action) => action.mode && action.mode === item.actionMode)
                         const isActiveAction = activeActionId !== undefined && matchedAction?.id === activeActionId
+                        const expanded = item.id !== undefined && expandedIds.has(item.id)
                         const borderColor = isActiveAction ? theme.colors.accent : theme.colors.borderOpaque
                         const backgroundColor =
                             themeType === 'dark'
@@ -445,6 +465,23 @@ export function TranslationHistory(props: TranslationHistoryProps) {
                                             : ''}
                                     </div>
                                     <div className={styles.historyActions}>
+                                        <Tooltip content={expanded ? t('Collapse') : t('Expand')} placement='bottom'>
+                                            <Button
+                                                size='mini'
+                                                kind='tertiary'
+                                                onClick={(event) => {
+                                                    event.stopPropagation()
+                                                    toggleExpanded(item.id)
+                                                }}
+                                                overrides={{
+                                                    BaseButton: {
+                                                        style: { paddingLeft: '6px', paddingRight: '6px' },
+                                                    },
+                                                }}
+                                            >
+                                                {expanded ? <MdExpandLess size={16} /> : <MdExpandMore size={16} />}
+                                            </Button>
+                                        </Tooltip>
                                         <Tooltip
                                             content={item.favorite ? t('Remove from favorites') : t('Add to favorites')}
                                             placement='bottom'
@@ -533,35 +570,70 @@ export function TranslationHistory(props: TranslationHistoryProps) {
                                         </Tooltip>
                                     </div>
                                 </div>
-                                <div className={styles.historyText}>
-                                    <div
-                                        className={styles.historyTextLabel}
-                                        style={{ color: theme.colors.contentTertiary }}
-                                    >
-                                        {t('Original Text')}
+                                {expanded ? (
+                                    <>
+                                        <div className={styles.historyText}>
+                                            <div
+                                                className={styles.historyTextLabel}
+                                                style={{ color: theme.colors.contentTertiary }}
+                                            >
+                                                {t('Original Text')}
+                                            </div>
+                                            <div
+                                                className={styles.historyTextBlock}
+                                                style={{ color: theme.colors.contentPrimary }}
+                                            >
+                                                {item.text}
+                                            </div>
+                                        </div>
+                                        <div
+                                            className={styles.divider}
+                                            style={{ background: theme.colors.borderOpaque }}
+                                        />
+                                        <div className={styles.historyText}>
+                                            <div
+                                                className={styles.historyTextLabel}
+                                                style={{ color: theme.colors.contentTertiary }}
+                                            >
+                                                {t('Translation')}
+                                            </div>
+                                            <div
+                                                className={styles.historyTextBlock}
+                                                style={{ color: theme.colors.contentPrimary }}
+                                            >
+                                                {item.translatedText}
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className={styles.historyText}>
+                                        <div
+                                            className={styles.historyTextBlock}
+                                            style={{
+                                                color: theme.colors.contentPrimary,
+                                                display: '-webkit-box',
+                                                WebkitLineClamp: 1,
+                                                WebkitBoxOrient: 'vertical',
+                                                overflow: 'hidden',
+                                            }}
+                                        >
+                                            {item.text}
+                                        </div>
+                                        <div
+                                            className={styles.historyTextBlock}
+                                            style={{
+                                                color: theme.colors.contentSecondary,
+                                                fontSize: '13px',
+                                                display: '-webkit-box',
+                                                WebkitLineClamp: 1,
+                                                WebkitBoxOrient: 'vertical',
+                                                overflow: 'hidden',
+                                            }}
+                                        >
+                                            {item.translatedText}
+                                        </div>
                                     </div>
-                                    <div
-                                        className={styles.historyTextBlock}
-                                        style={{ color: theme.colors.contentPrimary }}
-                                    >
-                                        {item.text}
-                                    </div>
-                                </div>
-                                <div className={styles.divider} style={{ background: theme.colors.borderOpaque }} />
-                                <div className={styles.historyText}>
-                                    <div
-                                        className={styles.historyTextLabel}
-                                        style={{ color: theme.colors.contentTertiary }}
-                                    >
-                                        {t('Translation')}
-                                    </div>
-                                    <div
-                                        className={styles.historyTextBlock}
-                                        style={{ color: theme.colors.contentPrimary }}
-                                    >
-                                        {item.translatedText}
-                                    </div>
-                                </div>
+                                )}
                             </div>
                         )
                     })
@@ -598,7 +670,10 @@ export function TranslationHistory(props: TranslationHistoryProps) {
                     color: theme.colors.contentPrimary,
                 }}
             >
-                <div className={styles.sidebarHeader}>
+                <div
+                    className={styles.sidebarHeader}
+                    style={props.headerExtraTopInset ? { paddingTop: props.headerExtraTopInset } : undefined}
+                >
                     <div className={styles.sidebarTitle}>{headerTitle}</div>
                     {props.onDetach && (
                         <Tooltip content={t('Open in separate window')} placement='bottom'>

@@ -3145,6 +3145,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                             onClose={() => undefined}
                             onRestore={handleHistoryRestore}
                             onDetach={handleSidebarDetach}
+                            headerExtraTopInset={isMacOS && sidebarPosition === 'left' ? 22 : 0}
                         />
                     </div>
                     <div
