@@ -61,6 +61,8 @@ import { actionService } from '../services/action'
 import { historyService } from '../services/history'
 import { ActionManager } from './ActionManager'
 import { TranslationHistory } from './TranslationHistory'
+import { nextSidebarPosition } from '../history-sidebar'
+import { useSidebarWindowWidth } from '../hooks/useSidebarWindowWidth'
 import { GrMoreVertical } from 'react-icons/gr'
 import { StatefulPopover } from 'baseui-sd/popover'
 import { StatefulMenu } from 'baseui-sd/menu'
@@ -642,6 +644,28 @@ function InnerTranslator(props: IInnerTranslatorProps) {
         })
         await setSettings(patch)
     }, [])
+
+    const { showSidebar, hideSidebar } = useSidebarWindowWidth()
+    // Non-Tauri builds never show the docked sidebar (FR-5); they keep the modal.
+    const sidebarPosition = isTauri() ? settings.sidebarPosition : 'hidden'
+    const [draftSidebarWidth, setDraftSidebarWidth] = useState(settings.sidebarWidth)
+    useEffect(() => {
+        setDraftSidebarWidth(settings.sidebarWidth)
+    }, [settings.sidebarWidth])
+    const applySidebarPosition = useCallback(
+        async (current: typeof sidebarPosition, next: ReturnType<typeof nextSidebarPosition>) => {
+            await persistSettingsPatch({ sidebarPosition: next })
+            const wasVisible = current === 'left' || current === 'right'
+            const willBeVisible = next === 'left' || next === 'right'
+            if (!wasVisible && willBeVisible) {
+                await showSidebar(draftSidebarWidth) // FR-6: grow the window
+            } else if (wasVisible && !willBeVisible) {
+                await hideSidebar(draftSidebarWidth) // FR-6: restore the window
+            }
+            // left <-> right keeps the same total width (FR-7): no resize.
+        },
+        [persistSettingsPatch, showSidebar, hideSidebar, draftSidebarWidth]
+    )
 
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2938,8 +2962,10 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                         event.stopPropagation()
                                         event.preventDefault()
                                         if (isTauri()) {
-                                            const { commands } = await import('@/tauri/bindings')
-                                            await commands.showHistoryWindow()
+                                            await applySidebarPosition(
+                                                sidebarPosition,
+                                                nextSidebarPosition(sidebarPosition)
+                                            )
                                             return
                                         }
                                         setIsHistoryOpen(true)
