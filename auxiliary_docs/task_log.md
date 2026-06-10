@@ -125,3 +125,30 @@
   - **未 `git push origin main`**：push 是 outward-facing 动作，留给用户决定何时推 fork
 - References:
   - merge commit `b7b6b90`；同步流程见 `auxiliary_docs/a_repo_fork_setup.md`
+
+---
+
+### 2026-06-11 — 同步 upstream v0.6.20（单个 Windows 修复）+ push fork
+
+- Task description:
+  - upstream 又发了 1 个 commit + release tag `v0.6.20`，sync 过来并把累积的 commit 一起 push 到个人 fork
+- Changes made:
+  - `git merge --no-edit upstream/main`（merge commit `d40521f`），带入 1 个 upstream commit：
+    - `6173f1c fix: suspend WebView2 renderers for hidden panels on Windows`（纯 Windows：隐藏面板时挂起 WebView2 渲染器，省资源；只改 `src-tauri/src/{main,windows,writing}.rs` + `src/tauri/windows/QuickTranslatorWindow.tsx` 4 个文件）
+  - 版本号四处 `0.6.19` → `0.6.20`（对齐 upstream 最新 release tag）：`tauri.conf.json`、`package.json`、`Cargo.toml`、`Cargo.lock`（`app` 包）
+- Issues encountered:
+  - 探测 diff 时一开始用了 `git diff HEAD..upstream/main`（两个点、方向反），输出误显示要删掉一大堆 fork 独有文件（specs / task_log / resolve-langs）。改用 `git show <commit>` 和三个点 `...` 后确认：实际只动 4 个 Windows 文件，merge 不会删任何 fork 文件
+- Resolution steps:
+  - 先 `git merge --no-commit --no-ff` 试合并 → 零冲突 → `git merge --abort` 还原 → 确认后正式 merge
+  - merge 后 `vitest run` 43 tests 全绿，`tsc --noEmit` clean
+  - 该修复跟本地两个 fork 功能（explain、lang lock）零重叠；本地非 Windows，功能上无感，sync 只为保持与上游对齐
+- Commands/scripts executed:
+  - `git fetch upstream && git merge --no-edit upstream/main`
+  - `gh release view ... --json tagName`（确认 `v0.6.20`）
+  - `pnpm exec vitest run`（43 pass）、`pnpm exec tsc --noEmit`（clean）
+  - `pnpm build-tauri`（`.app` / `.dmg` 0.6.20 成功，末尾 `BUILD_EXIT:1` 仍是 updater 签名 step 无 key，预期无害）
+  - `git push origin main`（把本轮 + 上轮共 3 个 commit 推到 fork）
+- Docs updated:
+  - `auxiliary_docs/a_repo_fork_setup.md`：上一条目已补「为何源码 version 永远 0.1.0」「四处版本号含 Cargo.lock」「merge 后版本号要单独 commit」三节，本轮无需再改
+- References:
+  - merge commit `d40521f`；上一轮 sync 见上一条目（2026-06-08）
