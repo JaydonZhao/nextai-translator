@@ -174,3 +174,34 @@
   - `pnpm build-tauri` 重新 build release（末尾 `BUILD_EXIT:1` 仍是 updater 签名 step 无 key，预期无害），`lsregister` 刷新后启动新 app
 - References:
   - 改动文件：`src-tauri/src/windows.rs`（单处）
+
+---
+
+### 2026-06-11 — 整合 VPS 的 History sidebar 工作 + 修 3 个相关 bug
+
+- Task description:
+  - 发现 VPS（`oracle_jaydon:/storage/repos/nextai-translator.git`，bare repo，remote 名 `vps`）上有一套独立的 History sidebar 工作（10 个 commit，含 atelier spec/plan + 测试）。把它整合进本地 main，并修掉整合后实测发现的 bug
+- VPS 工作内容（History docked sidebar，spec `C_translation_history_sidebar.md`）:
+  - 把 History 从「独立全屏窗口」升级为「主窗口内常驻侧边栏（左/右/隐藏三态）+ 可拖拽调宽 + 按 action 隔离 + 可 detach 成独立窗口」；保留独立窗口路径（FR-19）
+  - 与本 fork 既有工作零文件交集（VPS 全在 `src/common/` + `HistoryWindow.tsx`；本地 sync+bug 修复全在 `src-tauri/` + 配置）
+- 整合过程（稳妥路线，全程 main 不动）:
+  - `git fetch vps`；`git ls-remote vps` 确认 `vps/main = 9e07762`
+  - 安全试合并 `--no-commit --no-ff` 探测 → 零冲突 → abort 还原
+  - 建临时分支 `integrate/history-sidebar` 从 main，在其上 `git merge vps/main`（merge commit `672a008`，零冲突）
+  - 验证：`tsc` clean；`vitest` 64 pass（含 VPS 新增 sidebar 21 个测试）；SPEC_LOG 三条目齐全
+  - 用户 dev 实测 sidebar 功能 + 发现 3 个 bug
+- 实测发现的 3 个 bug 及处理:
+  - **bug 1**（真 bug，已修）：独立窗口开着时点 footer History 按钮，又弹出 sidebar → 两个 History 并存。根因：按钮只循环 sidebar，不感知独立窗口。修复：`Translator.tsx` 新增 `handleHistoryButtonClick`，用 `WebviewWindow.getByLabel('history')` 探测，存在则 raise/focus 独立窗口而非开 sidebar
+  - **bug 2**（判定为非 bug）：从某 action detach，独立窗口默认显示全部/translate 而非该 action。确认独立窗口本就有 action filter 下拉（spec FR-19 设计为可跨 action 浏览），用户认可现状。仅「初始默认筛选项不跟随 detach 来源」是轻微偏差，用户不在意，未改
+  - **bug 3**（真 bug，已修）：主窗口+独立窗口都开，切到别的 app 再回来 → 只剩独立窗口，主窗口要去 Dock 唤回。根因同 `2203a33` 家族（macOS `AppHandle::hide` 隐藏整个 app），但触发路径是「整个 app 失焦」而非「内部窗口抢焦点」，故上次的 `is_focused` 守卫挡不住。修复：`do_hide_translator_window` 改为——只要有 standalone 窗口（history/settings/action_manager）`is_visible`，主窗口失焦就完全跳过隐藏。此改动同时取代并强化了 `2203a33` 的 `is_focused` 守卫（焦点→可见性，覆盖更全）
+  - bug1+bug3 合并为 commit `787b718`
+- 调查手段:
+  - macOS WKWebView 连不上 chrome-devtools；改用临时 `console.log('[DETACH-DEBUG]...')` 输出到 `tauri dev` stdout（即 dev 日志文件）实证 scope 传递；bug2 判定为非 bug 后已撤除调试日志
+- Verification:
+  - `tsc` clean；`vitest` 64 pass；用户 dev 实测 bug1/bug3 修复有效
+  - `pnpm build-tauri` 出 release（`BUILD_EXIT:1` updater 签名预期无害）
+- Git:
+  - `integrate/history-sidebar` fast-forward 并回 `main`（`2203a33..787b718`）；push `origin`（GitHub fork，为 VPS 那 10 commit 建立云端备份）
+- References:
+  - spec `docs/atelier/specs/C_translation_history_sidebar.md`；plan `docs/atelier/plans/C_history_sidebar.md`
+  - 关键 commit：`672a008`（merge VPS）、`787b718`（bug1+bug3 修复）
