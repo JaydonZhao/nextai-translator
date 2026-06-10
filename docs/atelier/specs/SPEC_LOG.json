@@ -15,6 +15,14 @@
       "files": [
         { "action": "new", "path": "docs/atelier/specs/B_pinned_source_target_language.md" }
       ]
+    },
+    {
+      "timestamp": "2026-06-10",
+      "title": "Translation History Sidebar",
+      "description": "在 Tauri 桌面端主翻译窗口新增常驻历史侧边栏：持久化三态位置(左/右/隐藏,首次默认左,按钮循环)、可拖拽调宽并持久化、显示时自动加宽窗口(空间不足则翻译区让位)、内容按当前 action/模式隔离、点记录复用 handleHistoryRestore 加载且不重译、侧边栏头部「弹出」按钮拆为现有独立窗口(可跨 action 浏览,选中后主窗口切到对应 action 加载);仅 Tauri 桌面端,非 Tauri 维持现有 Modal",
+      "files": [
+        { "action": "new", "path": "docs/atelier/specs/C_translation_history_sidebar.md" }
+      ]
     }
   ]
 }
