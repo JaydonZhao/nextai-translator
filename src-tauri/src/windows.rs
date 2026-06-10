@@ -165,6 +165,17 @@ fn is_translator_foreground() -> bool {
 
 pub fn do_hide_translator_window() {
     if let Some(handle) = APP_HANDLE.get() {
+        // If another of our own windows (e.g. History/Settings) currently holds
+        // focus, this blur came from an in-app window switch, not the user
+        // leaving the app. On macOS the hide below calls AppHandle::hide, which
+        // hides the entire app — including the window the user just opened —
+        // leaving the translator unreachable except via the Dock. Skip it.
+        let internal_window_focused = handle.webview_windows().iter().any(|(label, window)| {
+            label != TRANSLATOR_WIN_NAME && window.is_focused().unwrap_or(false)
+        });
+        if internal_window_focused {
+            return;
+        }
         match handle.get_webview_window(TRANSLATOR_WIN_NAME) {
             Some(window) => {
                 #[cfg(not(target_os = "macos"))]

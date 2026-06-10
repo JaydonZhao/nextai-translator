@@ -152,3 +152,25 @@
   - `auxiliary_docs/a_repo_fork_setup.md`：上一条目已补「为何源码 version 永远 0.1.0」「四处版本号含 Cargo.lock」「merge 后版本号要单独 commit」三节，本轮无需再改
 - References:
   - merge commit `d40521f`；上一轮 sync 见上一条目（2026-06-08）
+
+---
+
+### 2026-06-11 — 修复 macOS 上打开 History 窗口会隐藏整个 app 的 bug
+
+- Task description:
+  - 现象：点 History 后主窗口消失，屏幕上只剩 History 窗口，必须去 Dock 点图标才能唤回主窗口；点 History 条目无反应
+- Root cause（实证确认，非推测）:
+  - History 是独立 Tauri 窗口（`windows.rs::show_history_window`），弹出时抢走焦点 → 主窗口 `onFocusChanged` 失焦 → 因 `autoHideWindowWhenOutOfFocus` 默认开（实测用户磁盘 config.json = true）→ 50ms 后调 `hideTranslatorWindow`
+  - macOS 上 `do_hide_translator_window` 执行的是 `tauri::AppHandle::hide(&handle)`（`windows.rs:176`，由 upstream `ad4e9b4`/`9fd4653` 引入，远早于本 fork），这是 NSApp 级「隐藏整个 app」，把主窗口连同 History 一起藏掉；History 又因自身 `useMemoWindow({show:true})` 重新 show，造成「只剩 History」假象
+  - 点条目无反应同源：restore 监听器（`Translator.tsx:1435` `listen('history:restore')`）在被隐藏的主窗口 webview 里，JS 挂起 → 广播事件丢失
+  - 旁证：`windows.rs:159` 有个 build 时报 unused 的 `is_translator_foreground()`，是 upstream 写了检测自家窗口前台、却从没接上的半成品（且依赖未授权的 accessibility，不可靠，未采用）
+- Fix:
+  - `src-tauri/src/windows.rs::do_hide_translator_window`：隐藏前先用 `handle.webview_windows()` + `is_focused()` 判断是否有「非 translator 的自家窗口（History/Settings 等）」持有焦点；是则 `return`，不触发整 app 隐藏。用户真正切到别的 app 时（自家窗口都无焦点）才正常隐藏。用 Tauri 原生 `is_focused()`，不依赖 accessibility
+- Issues / 调查手段:
+  - macOS WKWebView 连不上 chrome-devtools（CDP 只连 Chrome 自身）；AppleScript 无 accessibility 权限 → 改为直接读磁盘实证：WebKit localStorage sqlite（`history_size`/`history_position`）+ Application Support/config.json（`autoHideWindowWhenOutOfFocus`）
+  - 顺带发现 `history_position = {x:1264,y:3124}` 物理像素落在主屏外（用户双屏 5K+内建 Retina）——疑似独立的「双屏窗口位置恢复错位」次要 bug，本次未动，截图显示 History 尺寸正常，「占满屏幕」实为「主窗口消失只剩 History」的错觉
+- Verification:
+  - `pnpm dev-tauri` 热重载后用户手动复现验证：① 主窗口不再消失 ② History 可独立开关、与主窗口并存 ③ 点条目内容正确 restore 进主窗口
+  - `pnpm build-tauri` 重新 build release（末尾 `BUILD_EXIT:1` 仍是 updater 签名 step 无 key，预期无害），`lsregister` 刷新后启动新 app
+- References:
+  - 改动文件：`src-tauri/src/windows.rs`（单处）
