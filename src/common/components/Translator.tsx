@@ -673,6 +673,21 @@ function InnerTranslator(props: IInnerTranslatorProps) {
         [persistSettingsPatch, showSidebar, hideSidebar, draftSidebarWidth]
     )
 
+    // Footer History button. If the standalone history window is already open,
+    // raise/focus it instead of also opening the docked sidebar — otherwise the
+    // same history would show twice (standalone window + sidebar) at once.
+    const handleHistoryButtonClick = useCallback(async () => {
+        // Window label registered in src/tauri/App.tsx (matches Rust HISTORY_WIN_NAME).
+        const standalone = await WebviewWindow.getByLabel('history')
+        if (standalone) {
+            await standalone.unminimize().catch(() => undefined)
+            await standalone.show().catch(() => undefined)
+            await standalone.setFocus().catch(() => undefined)
+            return
+        }
+        await applySidebarPosition(sidebarPosition, nextSidebarPosition(sidebarPosition))
+    }, [applySidebarPosition, sidebarPosition])
+
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if (settings?.i18n !== (i18n as any).language) {
@@ -3031,10 +3046,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                         event.stopPropagation()
                                         event.preventDefault()
                                         if (isTauri()) {
-                                            await applySidebarPosition(
-                                                sidebarPosition,
-                                                nextSidebarPosition(sidebarPosition)
-                                            )
+                                            await handleHistoryButtonClick()
                                             return
                                         }
                                         setIsHistoryOpen(true)

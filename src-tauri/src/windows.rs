@@ -165,15 +165,23 @@ fn is_translator_foreground() -> bool {
 
 pub fn do_hide_translator_window() {
     if let Some(handle) = APP_HANDLE.get() {
-        // If another of our own windows (e.g. History/Settings) currently holds
-        // focus, this blur came from an in-app window switch, not the user
-        // leaving the app. On macOS the hide below calls AppHandle::hide, which
-        // hides the entire app — including the window the user just opened —
-        // leaving the translator unreachable except via the Dock. Skip it.
-        let internal_window_focused = handle.webview_windows().iter().any(|(label, window)| {
-            label != TRANSLATOR_WIN_NAME && window.is_focused().unwrap_or(false)
+        // Standalone UI windows the user actively works in alongside the translator.
+        // While any of these is visible, an autohide blur — whether from opening one
+        // of them (the translator loses focus) or from switching to another app and
+        // back — must NOT collapse the whole app. On macOS the hide below calls
+        // AppHandle::hide, which hides EVERY window of the app; on return the
+        // translator does not re-show itself, so the user is left with only the
+        // standalone window and has to close it and relaunch from the Dock. Skip the
+        // hide so the translator stays put next to the window the user opened.
+        const STANDALONE_WINDOWS: [&str; 3] =
+            [HISTORY_WIN_NAME, SETTINGS_WIN_NAME, ACTION_MANAGER_WIN_NAME];
+        let standalone_window_visible = STANDALONE_WINDOWS.iter().any(|label| {
+            handle
+                .get_webview_window(label)
+                .and_then(|window| window.is_visible().ok())
+                .unwrap_or(false)
         });
-        if internal_window_focused {
+        if standalone_window_visible {
             return;
         }
         match handle.get_webview_window(TRANSLATOR_WIN_NAME) {
