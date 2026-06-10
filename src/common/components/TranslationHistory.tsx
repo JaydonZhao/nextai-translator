@@ -407,6 +407,7 @@ export function TranslationHistory(props: TranslationHistoryProps) {
                 maxHeight: isModal ? '70vh' : 'none',
                 width: isModal ? 'min(720px, 90vw)' : '100%',
                 flex: isModal ? undefined : 1,
+                minHeight: isSidebar ? 0 : undefined,
                 margin: isModal ? undefined : '0 auto',
                 maxWidth: isModal ? undefined : '960px',
             }}
@@ -416,6 +417,7 @@ export function TranslationHistory(props: TranslationHistoryProps) {
                 className={styles.historyList}
                 style={{
                     flex: isModal ? undefined : 1,
+                    minHeight: isSidebar ? 0 : undefined,
                 }}
             >
                 {isActive && historyItems && historyItems.length > 0 ? (
